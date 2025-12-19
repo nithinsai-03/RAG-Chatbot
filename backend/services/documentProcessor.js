@@ -8,8 +8,8 @@ import * as cheerio from 'cheerio';
 
 export class DocumentProcessor {
   constructor(options = {}) {
-    this.chunkSize = options.chunkSize || 1000;  // Increased from 500
-    this.chunkOverlap = options.chunkOverlap || 150;  // Slightly increased overlap
+    this.chunkSize = options.chunkSize || 800;  // Optimal size for context
+    this.chunkOverlap = options.chunkOverlap || 200;  // More overlap for better continuity
   }
 
   async processFile(filePath, originalName) {
@@ -184,10 +184,12 @@ export class DocumentProcessor {
   }
 
   splitIntoSentences(text) {
-    // Simple sentence splitting
+    // Improved sentence splitting that preserves structure
     return text
-      .replace(/\n+/g, '. ')
-      .split(/(?<=[.!?])\s+/)
-      .filter(s => s.trim().length > 0);
+      .replace(/\r\n/g, '\n')
+      .replace(/\n{3,}/g, '\n\n')  // Normalize multiple newlines
+      .split(/(?<=[.!?])\s+|\n{2,}/)  // Split on sentence endings or double newlines
+      .map(s => s.trim())
+      .filter(s => s.length > 0);
   }
 }

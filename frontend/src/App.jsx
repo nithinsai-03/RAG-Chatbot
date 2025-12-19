@@ -2,87 +2,133 @@ import React, { useState, useRef, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import ReactMarkdown from 'react-markdown';
 import { useDropzone } from 'react-dropzone';
-import {
-  Send,
-  Upload,
-  FileText,
-  Bot,
-  User,
-  Trash2,
-  Loader2,
-  CheckCircle2,
+import { 
+  Send, 
+  Upload, 
+  FileText, 
+  X, 
+  Bot, 
+  User, 
+  Loader2, 
+  CheckCircle, 
   AlertCircle,
-  ChevronDown,
-  ChevronRight,
   Sparkles,
-  MessageSquare,
-  FileUp,
-  Globe,
-  X,
-  Settings,
   Zap,
-  Database,
-  Brain,
-  Link,
-  File,
-  ToggleLeft,
-  ToggleRight,
-  Info,
-  BookOpen
+  FileSearch,
+  MessageSquare,
+  Sun,
+  Moon,
+  LogOut,
+  Plus,
+  MessageCircle,
+  Trash2,
+  Menu
 } from 'lucide-react';
+import { LoginPage, SignupPage } from './components/Auth';
 
-const API_URL = '/api';
+const API_BASE = 'http://localhost:3001/api';
 
-// Mode configurations - Metallic Theme
-const MODES = {
+// Mode configurations
+const getModes = (isDark) => ({
   auto: {
     id: 'auto',
     name: 'Auto',
-    description: 'Automatically choose between RAG and General mode',
-    icon: Zap,
-    color: 'from-zinc-400 to-zinc-600',
-    bgColor: 'bg-zinc-500/10',
-    borderColor: 'border-zinc-400/30'
+    description: 'Intelligently switches between modes',
+    icon: Sparkles,
+    gradient: isDark 
+      ? 'from-purple-600 to-pink-600' 
+      : 'from-purple-500 to-pink-500',
+    bgColor: isDark ? 'bg-purple-500/10' : 'bg-purple-100',
+    borderColor: isDark ? 'border-purple-500/30' : 'border-purple-300',
+    textColor: isDark ? 'text-purple-400' : 'text-purple-600'
   },
   rag: {
     id: 'rag',
-    name: 'RAG Mode',
-    description: 'Answer based only on uploaded documents',
-    icon: Database,
-    color: 'from-neutral-300 to-neutral-500',
-    bgColor: 'bg-neutral-500/10',
-    borderColor: 'border-neutral-400/30'
+    name: 'Documents',
+    description: 'Search uploaded documents',
+    icon: FileSearch,
+    gradient: isDark 
+      ? 'from-emerald-600 to-teal-600' 
+      : 'from-emerald-500 to-teal-500',
+    bgColor: isDark ? 'bg-emerald-500/10' : 'bg-emerald-100',
+    borderColor: isDark ? 'border-emerald-500/30' : 'border-emerald-300',
+    textColor: isDark ? 'text-emerald-400' : 'text-emerald-600'
   },
   general: {
     id: 'general',
     name: 'General',
-    description: 'Open-ended AI assistant',
-    icon: Brain,
-    color: 'from-stone-300 to-stone-500',
-    bgColor: 'bg-stone-500/10',
-    borderColor: 'border-stone-400/30'
+    description: 'General AI assistant',
+    icon: MessageSquare,
+    gradient: isDark 
+      ? 'from-blue-600 to-cyan-600' 
+      : 'from-blue-500 to-cyan-500',
+    bgColor: isDark ? 'bg-blue-500/10' : 'bg-blue-100',
+    borderColor: isDark ? 'border-blue-500/30' : 'border-blue-300',
+    textColor: isDark ? 'text-blue-400' : 'text-blue-600'
   }
-};
+});
 
 function App() {
-  // State
+  // Theme state
+  const [theme, setTheme] = useState(() => {
+    return localStorage.getItem('theme') || 'dark';
+  });
+  const isDark = theme === 'dark';
+
+  // Auth state
+  const [user, setUser] = useState(() => {
+    const saved = localStorage.getItem('user');
+    return saved ? JSON.parse(saved) : null;
+  });
+  const [authView, setAuthView] = useState('login');
+
+  // Chat state
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [isUploading, setIsUploading] = useState(false);
-  const [documents, setDocuments] = useState([]);
   const [mode, setMode] = useState('auto');
   const [conversationId, setConversationId] = useState(null);
+
+  // Document state
+  const [documents, setDocuments] = useState([]);
+  const [uploadingFiles, setUploadingFiles] = useState([]);
+  const [showUploadPanel, setShowUploadPanel] = useState(false);
+
+  // Chat history state
+  const [chatHistory, setChatHistory] = useState(() => {
+    const saved = localStorage.getItem('chatHistory');
+    return saved ? JSON.parse(saved) : [];
+  });
+  const [currentChatId, setCurrentChatId] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
-  const [showUrlInput, setShowUrlInput] = useState(false);
-  const [urlInput, setUrlInput] = useState('');
-  const [expandedSources, setExpandedSources] = useState({});
-  const [stats, setStats] = useState({ documents: 0, chunks: 0 });
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
 
-  // Scroll to bottom of messages
+  const MODES = getModes(isDark);
+
+  // Toggle theme
+  const toggleTheme = () => {
+    const newTheme = theme === 'dark' ? 'light' : 'dark';
+    setTheme(newTheme);
+    localStorage.setItem('theme', newTheme);
+  };
+
+  // Auth handlers
+  const handleLogin = (userData) => {
+    setUser(userData);
+    localStorage.setItem('user', JSON.stringify(userData));
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    localStorage.removeItem('user');
+    setMessages([]);
+    setDocuments([]);
+    setConversationId(null);
+  };
+
+  // Scroll to bottom
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   };
@@ -91,72 +137,183 @@ function App() {
     scrollToBottom();
   }, [messages]);
 
-  // Fetch initial data
   useEffect(() => {
     fetchDocuments();
-    fetchStats();
   }, []);
 
+  // Fetch documents
   const fetchDocuments = async () => {
     try {
-      const response = await axios.get(`${API_URL}/documents`);
+      const response = await axios.get(`${API_BASE}/documents`);
       setDocuments(response.data.documents || []);
     } catch (error) {
-      console.error('Failed to fetch documents:', error);
+      console.error('Error fetching documents:', error);
     }
   };
 
-  const fetchStats = async () => {
-    try {
-      const response = await axios.get(`${API_URL}/stats`);
-      setStats(response.data);
-    } catch (error) {
-      console.error('Failed to fetch stats:', error);
-    }
-  };
-
-  // File upload handler
-  const onDrop = useCallback(async (acceptedFiles) => {
-    if (acceptedFiles.length === 0) return;
-
-    setIsUploading(true);
-    const formData = new FormData();
+  // Save chat to history
+  const saveChatToHistory = (chatMessages, chatId) => {
+    if (chatMessages.length === 0) return;
     
-    acceptedFiles.forEach(file => {
-      formData.append('files', file);
+    const firstUserMessage = chatMessages.find(m => m.role === 'user');
+    const title = firstUserMessage 
+      ? firstUserMessage.content.slice(0, 40) + (firstUserMessage.content.length > 40 ? '...' : '')
+      : 'New Chat';
+    
+    const chat = {
+      id: chatId || Date.now().toString(),
+      title,
+      messages: chatMessages,
+      timestamp: new Date().toISOString(),
+      mode
+    };
+    
+    setChatHistory(prev => {
+      const existing = prev.findIndex(c => c.id === chat.id);
+      let updated;
+      if (existing >= 0) {
+        updated = [...prev];
+        updated[existing] = chat;
+      } else {
+        updated = [chat, ...prev];
+      }
+      localStorage.setItem('chatHistory', JSON.stringify(updated));
+      return updated;
     });
+    
+    return chat.id;
+  };
+
+  // Start new chat
+  const startNewChat = () => {
+    if (messages.length > 0) {
+      saveChatToHistory(messages, currentChatId);
+    }
+    setMessages([]);
+    setConversationId(null);
+    setCurrentChatId(null);
+  };
+
+  // Load chat from history
+  const loadChat = (chat) => {
+    if (messages.length > 0 && currentChatId !== chat.id) {
+      saveChatToHistory(messages, currentChatId);
+    }
+    setMessages(chat.messages);
+    setCurrentChatId(chat.id);
+    setMode(chat.mode || 'auto');
+  };
+
+  // Delete chat from history
+  const deleteChat = (chatId, e) => {
+    e.stopPropagation();
+    setChatHistory(prev => {
+      const updated = prev.filter(c => c.id !== chatId);
+      localStorage.setItem('chatHistory', JSON.stringify(updated));
+      return updated;
+    });
+    if (currentChatId === chatId) {
+      setMessages([]);
+      setCurrentChatId(null);
+    }
+  };
+
+  // Handle mode change
+  const handleModeChange = (newMode) => {
+    setMode(newMode);
+    setConversationId(null);
+  };
+
+  // Send message
+  const sendMessage = async () => {
+    if (!input.trim() || isLoading) return;
+
+    const userMessage = {
+      id: Date.now(),
+      role: 'user',
+      content: input.trim(),
+      timestamp: new Date().toISOString()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInput('');
+    setIsLoading(true);
 
     try {
-      const response = await axios.post(`${API_URL}/documents/upload`, formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
+      const response = await axios.post(`${API_BASE}/chat`, {
+        message: userMessage.content,
+        mode,
+        conversationId
       });
 
-      // Add system message about upload
-      const successCount = response.data.processed;
-      const failCount = response.data.failed;
-      
-      let uploadMessage = `📄 Successfully processed ${successCount} document(s)`;
-      if (failCount > 0) {
-        uploadMessage += ` (${failCount} failed)`;
-      }
-      uploadMessage += `. Total chunks: ${response.data.totalChunks}`;
+      const assistantMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: response.data.answer,
+        mode: response.data.mode,
+        sources: response.data.sources,
+        timestamp: new Date().toISOString()
+      };
 
-      setMessages(prev => [...prev, {
-        type: 'system',
-        content: uploadMessage
-      }]);
-
-      fetchDocuments();
-      fetchStats();
-
+      setMessages(prev => {
+        const newMessages = [...prev, assistantMessage];
+        // Auto-save chat after each response
+        const chatId = currentChatId || Date.now().toString();
+        if (!currentChatId) setCurrentChatId(chatId);
+        setTimeout(() => saveChatToHistory(newMessages, chatId), 100);
+        return newMessages;
+      });
+      setConversationId(response.data.conversationId);
     } catch (error) {
-      console.error('Upload error:', error);
-      setMessages(prev => [...prev, {
-        type: 'error',
-        content: `Failed to upload: ${error.response?.data?.error || error.message}`
-      }]);
+      console.error('Error sending message:', error);
+      const errorMessage = {
+        id: Date.now() + 1,
+        role: 'assistant',
+        content: 'Sorry, I encountered an error. Please try again.',
+        isError: true,
+        timestamp: new Date().toISOString()
+      };
+      setMessages(prev => [...prev, errorMessage]);
     } finally {
-      setIsUploading(false);
+      setIsLoading(false);
+    }
+  };
+
+  // Handle file upload
+  const onDrop = useCallback(async (acceptedFiles) => {
+    for (const file of acceptedFiles) {
+      const fileId = Date.now() + Math.random();
+      setUploadingFiles(prev => [...prev, { id: fileId, name: file.name, progress: 0 }]);
+
+      const formData = new FormData();
+      formData.append('files', file);
+
+      try {
+        await axios.post(`${API_BASE}/documents/upload`, formData, {
+          headers: { 'Content-Type': 'multipart/form-data' },
+          onUploadProgress: (progressEvent) => {
+            const progress = Math.round((progressEvent.loaded * 100) / progressEvent.total);
+            setUploadingFiles(prev =>
+              prev.map(f => f.id === fileId ? { ...f, progress } : f)
+            );
+          }
+        });
+
+        setUploadingFiles(prev =>
+          prev.map(f => f.id === fileId ? { ...f, progress: 100, completed: true } : f)
+        );
+
+        setTimeout(() => {
+          setUploadingFiles(prev => prev.filter(f => f.id !== fileId));
+        }, 2000);
+
+        fetchDocuments();
+      } catch (error) {
+        console.error('Upload error:', error);
+        setUploadingFiles(prev =>
+          prev.map(f => f.id === fileId ? { ...f, error: true } : f)
+        );
+      }
     }
   }, []);
 
@@ -165,549 +322,488 @@ function App() {
     accept: {
       'application/pdf': ['.pdf'],
       'application/vnd.openxmlformats-officedocument.wordprocessingml.document': ['.docx'],
-      'application/vnd.openxmlformats-officedocument.presentationml.presentation': ['.pptx'],
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx'],
       'text/plain': ['.txt'],
-      'text/markdown': ['.md'],
-      'text/csv': ['.csv']
-    },
-    multiple: true
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': ['.xlsx']
+    }
   });
 
-  // URL ingestion
-  const handleUrlSubmit = async () => {
-    if (!urlInput.trim()) return;
-
-    setIsUploading(true);
-    try {
-      const response = await axios.post(`${API_URL}/documents/url`, {
-        url: urlInput
-      });
-
-      setMessages(prev => [...prev, {
-        type: 'system',
-        content: `🌐 Successfully ingested URL: ${urlInput} (${response.data.chunks} chunks)`
-      }]);
-
-      setUrlInput('');
-      setShowUrlInput(false);
-      fetchDocuments();
-      fetchStats();
-
-    } catch (error) {
-      setMessages(prev => [...prev, {
-        type: 'error',
-        content: `Failed to ingest URL: ${error.response?.data?.error || error.message}`
-      }]);
-    } finally {
-      setIsUploading(false);
-    }
-  };
-
-  // Send message
-  const handleSendMessage = async () => {
-    if (!input.trim() || isLoading) return;
-
-    const userMessage = { type: 'user', content: input };
-    setMessages(prev => [...prev, userMessage]);
-    setInput('');
-    setIsLoading(true);
-
-    try {
-      const response = await axios.post(`${API_URL}/chat`, {
-        message: input,
-        conversationId,
-        mode
-      });
-
-      if (!conversationId) {
-        setConversationId(response.data.conversationId);
-      }
-
-      const assistantMessage = {
-        type: 'assistant',
-        content: response.data.answer,
-        mode: response.data.mode,
-        sources: response.data.sources
-      };
-
-      setMessages(prev => [...prev, assistantMessage]);
-
-    } catch (error) {
-      console.error('Chat error:', error);
-      setMessages(prev => [...prev, {
-        type: 'error',
-        content: error.response?.data?.error || 'Failed to get response'
-      }]);
-    } finally {
-      setIsLoading(false);
-      inputRef.current?.focus();
-    }
-  };
-
   // Delete document
-  const handleDeleteDocument = async (docId) => {
+  const deleteDocument = async (docId) => {
     try {
-      await axios.delete(`${API_URL}/documents/${docId}`);
+      await axios.delete(`${API_BASE}/documents/${docId}`);
       fetchDocuments();
-      fetchStats();
     } catch (error) {
-      console.error('Delete error:', error);
+      console.error('Error deleting document:', error);
     }
   };
 
-  // Clear all
-  const handleClearAll = async () => {
-    try {
-      await axios.post(`${API_URL}/documents/clear`);
-      setMessages([]);
-      setConversationId(null);
-      fetchDocuments();
-      fetchStats();
-    } catch (error) {
-      console.error('Clear error:', error);
+  // Show auth pages if not logged in
+  if (!user) {
+    if (authView === 'login') {
+      return (
+        <LoginPage
+          onLogin={handleLogin}
+          onSwitchToSignup={() => setAuthView('signup')}
+          theme={theme}
+        />
+      );
+    } else {
+      return (
+        <SignupPage
+          onSignup={handleLogin}
+          onSwitchToLogin={() => setAuthView('login')}
+          theme={theme}
+        />
+      );
     }
-  };
-
-  // Toggle source expansion
-  const toggleSources = (index) => {
-    setExpandedSources(prev => ({
-      ...prev,
-      [index]: !prev[index]
-    }));
-  };
-
-  // Handle key press
-  const handleKeyPress = (e) => {
-    if (e.key === 'Enter' && !e.shiftKey) {
-      e.preventDefault();
-      handleSendMessage();
-    }
-  };
-
-  const currentMode = MODES[mode];
-  const ModeIcon = currentMode.icon;
+  }
 
   return (
-    <div className="min-h-screen flex">
-      {/* Sidebar */}
-      <aside className={`${showSidebar ? 'w-80' : 'w-0'} transition-all duration-300 overflow-hidden glass-dark flex flex-col`}>
-        <div className="p-4 border-b border-zinc-800/50">
-          <div className="flex items-center gap-3 mb-4">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-zinc-600 to-zinc-800 flex items-center justify-center glow-primary border border-zinc-500/30">
-              <Bot className="w-5 h-5 text-zinc-200" />
-            </div>
-            <div>
-              <h1 className="font-semibold text-zinc-100">AI Assistant</h1>
-              <p className="text-xs text-zinc-500">RAG-powered chatbot</p>
-            </div>
-          </div>
-
-          {/* Mode Selector */}
-          <div className="space-y-2">
-            <label className="text-xs font-medium text-zinc-500 uppercase tracking-wider">Mode</label>
-            <div className="grid grid-cols-3 gap-2">
-              {Object.values(MODES).map((m) => {
-                const Icon = m.icon;
-                const isActive = mode === m.id;
-                return (
-                  <button
-                    key={m.id}
-                    onClick={() => setMode(m.id)}
-                    className={`p-2 rounded-lg flex flex-col items-center gap-1 transition-all border ${
-                      isActive
-                        ? `bg-gradient-to-b from-zinc-700 to-zinc-800 text-zinc-100 shadow-lg border-zinc-500/50`
-                        : 'bg-zinc-900/50 text-zinc-500 hover:bg-zinc-800/50 hover:text-zinc-300 border-zinc-700/30'
-                    }`}
-                    title={m.description}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span className="text-xs font-medium">{m.name}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-
-        {/* Documents Section */}
-        <div className="flex-1 overflow-y-auto p-4">
-          <div className="flex items-center justify-between mb-3">
-            <h3 className="text-sm font-medium text-zinc-400 flex items-center gap-2">
-              <FileText className="w-4 h-4" />
-              Documents ({documents.length})
-            </h3>
-            {documents.length > 0 && (
-              <button
-                onClick={handleClearAll}
-                className="text-xs text-zinc-500 hover:text-zinc-300 flex items-center gap-1"
-              >
-                <Trash2 className="w-3 h-3" />
-                Clear
-              </button>
-            )}
-          </div>
-
-          {/* Upload Zone */}
-          <div
-            {...getRootProps()}
-            className={`border-2 border-dashed rounded-xl p-4 text-center cursor-pointer transition-all mb-4 ${
-              isDragActive
-                ? 'border-zinc-400 bg-zinc-700/20'
-                : 'border-zinc-700 hover:border-zinc-500 hover:bg-zinc-800/30'
+    <div className={`min-h-screen flex ${
+      isDark 
+        ? 'bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900' 
+        : 'bg-gradient-to-br from-gray-50 via-white to-gray-100'
+    }`}>
+      {/* Chat History Sidebar */}
+      <aside className={`${showSidebar ? 'w-64' : 'w-0'} transition-all duration-300 overflow-hidden flex-shrink-0 ${
+        isDark ? 'bg-zinc-900 border-zinc-700/50' : 'bg-gray-50 border-gray-200'
+      } border-r flex flex-col`}>
+        <div className="p-3 flex-shrink-0">
+          <button
+            onClick={startNewChat}
+            className={`w-full flex items-center gap-2 px-4 py-3 rounded-xl font-medium transition-all ${
+              isDark
+                ? 'bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-700'
+                : 'bg-white hover:bg-gray-100 text-gray-900 border border-gray-200 shadow-sm'
             }`}
           >
-            <input {...getInputProps()} />
-            {isUploading ? (
-              <div className="flex flex-col items-center gap-2">
-                <Loader2 className="w-8 h-8 text-zinc-400 animate-spin" />
-                <p className="text-sm text-zinc-500">Processing...</p>
-              </div>
-            ) : (
-              <div className="flex flex-col items-center gap-2">
-                <FileUp className="w-8 h-8 text-zinc-600" />
-                <p className="text-sm text-zinc-500">
-                  {isDragActive ? 'Drop files here' : 'Drag & drop or click'}
-                </p>
-                <p className="text-xs text-zinc-600">PDF, DOCX, XLSX, TXT, MD</p>
-              </div>
-            )}
-          </div>
-
-          {/* URL Input */}
-          <button
-            onClick={() => setShowUrlInput(!showUrlInput)}
-            className="w-full mb-3 flex items-center gap-2 text-sm text-zinc-500 hover:text-zinc-300 transition-colors"
-          >
-            <Globe className="w-4 h-4" />
-            <span>Add from URL</span>
-            <ChevronRight className={`w-4 h-4 ml-auto transition-transform ${showUrlInput ? 'rotate-90' : ''}`} />
+            <Plus className="w-5 h-5" />
+            New Chat
           </button>
-
-          {showUrlInput && (
-            <div className="flex gap-2 mb-4">
-              <input
-                type="url"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
-                placeholder="https://..."
-                className="flex-1 bg-zinc-900/50 border border-zinc-700 rounded-lg px-3 py-2 text-sm text-zinc-200 placeholder-zinc-600 focus:outline-none focus:border-zinc-500"
-                onKeyPress={(e) => e.key === 'Enter' && handleUrlSubmit()}
-              />
-              <button
-                onClick={handleUrlSubmit}
-                disabled={!urlInput.trim() || isUploading}
-                className="p-2 bg-zinc-700 hover:bg-zinc-600 rounded-lg disabled:opacity-50 transition-colors border border-zinc-600"
-              >
-                <Link className="w-4 h-4 text-zinc-300" />
-              </button>
-            </div>
-          )}
-
-          {/* Document List */}
-          <div className="space-y-2">
-            {documents.map((doc) => (
+        </div>
+        
+        <div className="flex-1 overflow-y-auto px-3 pb-3">
+          <p className={`text-xs font-medium px-2 py-2 ${isDark ? 'text-zinc-500' : 'text-gray-500'}`}>
+            Recent Chats
+          </p>
+          <div className="space-y-1">
+            {chatHistory.map((chat) => (
               <div
-                key={doc.id}
-                className="group flex items-center gap-3 p-3 bg-zinc-800/30 hover:bg-zinc-800/50 rounded-lg transition-colors border border-zinc-800/50"
+                key={chat.id}
+                onClick={() => loadChat(chat)}
+                className={`group flex items-center gap-2 px-3 py-2 rounded-lg cursor-pointer transition-all ${
+                  currentChatId === chat.id
+                    ? isDark
+                      ? 'bg-zinc-700 text-white'
+                      : 'bg-blue-100 text-blue-900'
+                    : isDark
+                      ? 'hover:bg-zinc-800 text-zinc-300'
+                      : 'hover:bg-gray-100 text-gray-700'
+                }`}
               >
-                <File className="w-4 h-4 text-zinc-500 flex-shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm text-zinc-200 truncate">{doc.name}</p>
-                  <p className="text-xs text-zinc-600">{doc.chunkCount} chunks</p>
-                </div>
+                <MessageCircle className="w-4 h-4 flex-shrink-0" />
+                <span className="flex-1 truncate text-sm">{chat.title}</span>
                 <button
-                  onClick={() => handleDeleteDocument(doc.id)}
-                  className="opacity-0 group-hover:opacity-100 p-1 text-zinc-600 hover:text-zinc-300 transition-all"
+                  onClick={(e) => deleteChat(chat.id, e)}
+                  className={`opacity-0 group-hover:opacity-100 p-1 rounded transition-all ${
+                    isDark ? 'hover:bg-zinc-600 text-zinc-400' : 'hover:bg-gray-200 text-gray-500'
+                  }`}
                 >
-                  <X className="w-4 h-4" />
+                  <Trash2 className="w-3 h-3" />
                 </button>
               </div>
             ))}
-          </div>
-
-          {documents.length === 0 && (
-            <div className="text-center py-8 text-zinc-600">
-              <BookOpen className="w-12 h-12 mx-auto mb-3 opacity-30" />
-              <p className="text-sm">No documents yet</p>
-              <p className="text-xs mt-1">Upload files to enable RAG</p>
-            </div>
-          )}
-        </div>
-
-        {/* Stats Footer */}
-        <div className="p-4 border-t border-zinc-800/50 bg-zinc-900/50">
-          <div className="grid grid-cols-2 gap-3 text-center">
-            <div className="p-2 bg-zinc-800/30 rounded-lg border border-zinc-700/30">
-              <p className="text-lg font-semibold text-white">{stats.documents}</p>
-              <p className="text-xs text-zinc-500">Documents</p>
-            </div>
-            <div className="p-2 bg-zinc-800/30 rounded-lg border border-zinc-700/30">
-              <p className="text-lg font-semibold text-white">{stats.chunks}</p>
-              <p className="text-xs text-zinc-500">Chunks</p>
-            </div>
+            {chatHistory.length === 0 && (
+              <p className={`text-sm text-center py-4 ${isDark ? 'text-zinc-600' : 'text-gray-400'}`}>
+                No chat history
+              </p>
+            )}
           </div>
         </div>
       </aside>
 
       {/* Main Content */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <div className="flex-1 flex flex-col min-w-0">
         {/* Header */}
-        <header className="glass-dark border-b border-zinc-800/50 px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <button
-              onClick={() => setShowSidebar(!showSidebar)}
-              className="p-2 hover:bg-zinc-800 rounded-lg transition-colors"
-            >
-              {showSidebar ? <ChevronRight className="w-5 h-5 rotate-180" /> : <ChevronRight className="w-5 h-5" />}
-            </button>
-            
-            <div className="flex items-center gap-2">
-              <div className={`px-3 py-1.5 rounded-full ${currentMode.bgColor} ${currentMode.borderColor} border flex items-center gap-2`}>
-                <ModeIcon className="w-4 h-4" />
-                <span className="text-sm font-medium">{currentMode.name}</span>
+        <header className={`${
+          isDark 
+            ? 'bg-zinc-900/80 border-zinc-700/50' 
+            : 'bg-white/80 border-gray-200'
+        } backdrop-blur-xl border-b sticky top-0 z-50`}>
+          <div className="px-4 py-3">
+            <div className="flex items-center justify-between">
+              {/* Sidebar Toggle & Logo */}
+              <div className="flex items-center gap-3">
+                <button
+                  onClick={() => setShowSidebar(!showSidebar)}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark 
+                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-700/50' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                  }`}
+                >
+                  <Menu className="w-5 h-5" />
+                </button>
+                <div className={`w-10 h-10 rounded-xl ${
+                  isDark 
+                    ? 'bg-gradient-to-br from-zinc-600 to-zinc-800 border-zinc-500/30' 
+                    : 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400/30'
+                } border flex items-center justify-center`}>
+                  <Bot className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h1 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                    AI Assistant
+                  </h1>
+                  <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-gray-500'}`}>
+                    Powered by RAG
+                  </p>
+                </div>
               </div>
-              <p className="text-sm text-zinc-500 hidden sm:block">{currentMode.description}</p>
-            </div>
-          </div>
 
-          <div className="flex items-center gap-2">
-            {messages.length > 0 && (
-              <button
-                onClick={() => {
-                  setMessages([]);
-                  setConversationId(null);
-                }}
-                className="p-2 text-zinc-400 hover:text-white hover:bg-zinc-800 rounded-lg transition-colors"
-                title="New conversation"
-              >
-                <MessageSquare className="w-5 h-5" />
-              </button>
-            )}
+              {/* Mode Selector */}
+              <div className={`flex items-center gap-1 p-1 rounded-xl ${
+                isDark ? 'bg-zinc-800/50' : 'bg-gray-100'
+              }`}>
+                {Object.values(MODES).map((m) => {
+                  const Icon = m.icon;
+                  const isActive = mode === m.id;
+                  return (
+                    <button
+                      key={m.id}
+                      onClick={() => handleModeChange(m.id)}
+                      className={`flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium transition-all ${
+                        isActive
+                          ? `bg-gradient-to-r ${m.gradient} text-white shadow-lg`
+                          : isDark
+                            ? 'text-zinc-400 hover:text-white hover:bg-zinc-700/50'
+                            : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span className="hidden sm:inline">{m.name}</span>
+                    </button>
+                  );
+                })}
+              </div>
+
+              {/* Right side buttons */}
+              <div className="flex items-center gap-2">
+                {/* Theme toggle */}
+                <button
+                  onClick={toggleTheme}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark 
+                      ? 'text-zinc-400 hover:text-white hover:bg-zinc-700/50' 
+                      : 'text-gray-600 hover:text-gray-900 hover:bg-gray-200'
+                  }`}
+                >
+                  {isDark ? <Sun className="w-5 h-5" /> : <Moon className="w-5 h-5" />}
+                </button>
+
+                {/* Upload button */}
+                <button
+                  onClick={() => setShowUploadPanel(!showUploadPanel)}
+                  className={`flex items-center gap-2 px-3 py-2 rounded-xl transition-all ${
+                    isDark
+                      ? 'bg-zinc-800 hover:bg-zinc-700 text-zinc-300 border border-zinc-700'
+                      : 'bg-gray-100 hover:bg-gray-200 text-gray-700 border border-gray-200'
+                  }`}
+                >
+                  <Upload className="w-4 h-4" />
+                  <span className="hidden sm:inline">Upload</span>
+                  {documents.length > 0 && (
+                    <span className={`px-2 py-0.5 rounded-full text-xs ${
+                      isDark 
+                        ? 'bg-zinc-700 text-zinc-300' 
+                        : 'bg-gray-200 text-gray-600'
+                    }`}>
+                      {documents.length}
+                    </span>
+                  )}
+                </button>
+
+                {/* Logout button */}
+                <button
+                  onClick={handleLogout}
+                  className={`p-2 rounded-lg transition-colors ${
+                    isDark 
+                      ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-700/50' 
+                      : 'text-gray-600 hover:text-red-500 hover:bg-gray-200'
+                  }`}
+                  title="Logout"
+                >
+                  <LogOut className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
           </div>
         </header>
 
-        {/* Messages Area */}
-        <div className="flex-1 overflow-y-auto">
-          {messages.length === 0 ? (
-            <WelcomeScreen mode={mode} hasDocuments={documents.length > 0} />
-          ) : (
-            <div className="max-w-4xl mx-auto px-4 py-6 space-y-6">
-              {messages.map((message, index) => (
-                <MessageBubble
-                  key={index}
-                  message={message}
-                  index={index}
-                  expandedSources={expandedSources}
-                  toggleSources={toggleSources}
-                />
-              ))}
-
-              {isLoading && (
-                <div className="flex gap-4 animate-message">
-                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-500 to-zinc-700 flex items-center justify-center flex-shrink-0 ring-2 ring-zinc-600/50">
-                    <Bot className="w-5 h-5 text-white" />
-                  </div>
-                  <div className="glass rounded-2xl rounded-tl-sm px-4 py-3">
-                    <div className="flex items-center gap-2 text-zinc-400">
-                      <span className="animate-typing">●</span>
-                      <span className="animate-typing" style={{ animationDelay: '0.2s' }}>●</span>
-                      <span className="animate-typing" style={{ animationDelay: '0.4s' }}>●</span>
+        <div className="flex-1 flex overflow-hidden">
+          {/* Main Chat Area */}
+          <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
+            {/* Messages */}
+            <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {messages.length === 0 && (
+                <div className="flex-1 flex items-center justify-center h-full min-h-[400px]">
+                  <div className="text-center">
+                    <div className={`w-20 h-20 mx-auto rounded-2xl ${
+                      isDark 
+                        ? 'bg-gradient-to-br from-zinc-700 to-zinc-800 border-zinc-600/30' 
+                        : 'bg-gradient-to-br from-blue-100 to-blue-200 border-blue-300/30'
+                    } border flex items-center justify-center mb-4`}>
+                      <Zap className={`w-10 h-10 ${isDark ? 'text-zinc-400' : 'text-blue-500'}`} />
                     </div>
+                    <h2 className={`text-xl font-semibold mb-2 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                      How can I help you today?
+                    </h2>
+                  <p className={`max-w-md ${isDark ? 'text-zinc-500' : 'text-gray-500'}`}>
+                    {mode === 'rag' 
+                      ? 'Ask questions about your uploaded documents'
+                      : mode === 'general'
+                        ? 'Ask me anything - I\'m here to help!'
+                        : 'I\'ll automatically use your documents when relevant'}
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {messages.map((message) => (
+              <div
+                key={message.id}
+                className={`flex gap-3 ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+              >
+                {message.role === 'assistant' && (
+                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                    isDark 
+                      ? 'bg-gradient-to-br from-zinc-600 to-zinc-700' 
+                      : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                  }`}>
+                    <Bot className="w-4 h-4 text-white" />
+                  </div>
+                )}
+                
+                <div className={`max-w-[80%] rounded-2xl px-4 py-3 ${
+                  message.role === 'user'
+                    ? isDark
+                      ? 'bg-gradient-to-r from-zinc-600 to-zinc-700 text-white'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white'
+                    : message.isError
+                      ? 'bg-red-500/10 border border-red-500/30 text-red-400'
+                      : isDark
+                        ? 'bg-zinc-800/50 border border-zinc-700/50 text-zinc-100'
+                        : 'bg-white border border-gray-200 text-gray-800 shadow-sm'
+                }`}>
+                  {message.role === 'assistant' ? (
+                    <div className="prose prose-sm max-w-none dark:prose-invert">
+                      <ReactMarkdown>{message.content}</ReactMarkdown>
+                    </div>
+                  ) : (
+                    <p>{message.content}</p>
+                  )}
+                  
+                  {message.sources && message.sources.length > 0 && (
+                    <div className={`mt-3 pt-3 border-t ${isDark ? 'border-zinc-700' : 'border-gray-200'}`}>
+                      <p className={`text-xs mb-2 ${isDark ? 'text-zinc-500' : 'text-gray-500'}`}>Sources:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {message.sources.map((source, idx) => (
+                          <span
+                            key={idx}
+                            className={`text-xs px-2 py-1 rounded-lg ${
+                              isDark 
+                                ? 'bg-zinc-700/50 text-zinc-400' 
+                                : 'bg-gray-100 text-gray-600'
+                            }`}
+                          >
+                            {source.filename}
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {message.role === 'user' && (
+                  <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                    isDark 
+                      ? 'bg-zinc-700' 
+                      : 'bg-gray-200'
+                  }`}>
+                    <User className={`w-4 h-4 ${isDark ? 'text-zinc-300' : 'text-gray-600'}`} />
+                  </div>
+                )}
+              </div>
+            ))}
+
+            {isLoading && (
+              <div className="flex gap-3">
+                <div className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center ${
+                  isDark 
+                    ? 'bg-gradient-to-br from-zinc-600 to-zinc-700' 
+                    : 'bg-gradient-to-br from-blue-500 to-blue-600'
+                }`}>
+                  <Bot className="w-4 h-4 text-white" />
+                </div>
+                <div className={`rounded-2xl px-4 py-3 ${
+                  isDark 
+                    ? 'bg-zinc-800/50 border border-zinc-700/50' 
+                    : 'bg-white border border-gray-200 shadow-sm'
+                }`}>
+                  <div className="flex items-center gap-2">
+                    <Loader2 className={`w-4 h-4 animate-spin ${isDark ? 'text-zinc-400' : 'text-gray-500'}`} />
+                    <span className={isDark ? 'text-zinc-400' : 'text-gray-500'}>Thinking...</span>
                   </div>
                 </div>
-              )}
-
-              <div ref={messagesEndRef} />
-            </div>
-          )}
-        </div>
-
-        {/* Input Area */}
-        <div className="glass-dark border-t border-zinc-800/50 p-4">
-          <div className="max-w-4xl mx-auto">
-            <div className="flex gap-3">
-              <div className="flex-1 relative">
-                <textarea
-                  ref={inputRef}
-                  value={input}
-                  onChange={(e) => setInput(e.target.value)}
-                  onKeyDown={handleKeyPress}
-                  placeholder={
-                    mode === 'rag' && documents.length === 0
-                      ? 'Upload documents first to use RAG mode...'
-                      : 'Ask anything...'
-                  }
-                  disabled={isLoading}
-                  rows={1}
-                  className="w-full px-4 py-3 bg-zinc-800/50 border border-zinc-700/50 rounded-xl text-white placeholder-zinc-500 focus:outline-none focus:border-zinc-500/50 focus:ring-1 focus:ring-zinc-500/50 resize-none transition-all"
-                  style={{ minHeight: '48px', maxHeight: '150px' }}
-                />
               </div>
+            )}
+
+            <div ref={messagesEndRef} />
+          </div>
+
+          {/* Input Area */}
+          <div className={`p-4 border-t ${isDark ? 'border-zinc-800' : 'border-gray-200'}`}>
+            <div className={`flex items-center gap-3 p-2 rounded-2xl ${
+              isDark 
+                ? 'bg-zinc-800/50 border border-zinc-700/50' 
+                : 'bg-white border border-gray-200 shadow-sm'
+            }`}>
+              <input
+                ref={inputRef}
+                type="text"
+                value={input}
+                onChange={(e) => setInput(e.target.value)}
+                onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
+                placeholder="Type your message..."
+                className={`flex-1 px-4 py-3 bg-transparent outline-none ${
+                  isDark 
+                    ? 'text-white placeholder-zinc-500' 
+                    : 'text-gray-900 placeholder-gray-400'
+                }`}
+              />
               <button
-                onClick={handleSendMessage}
+                onClick={sendMessage}
                 disabled={!input.trim() || isLoading}
-                className="px-4 py-3 bg-gradient-to-r from-zinc-600 to-zinc-800 hover:from-zinc-500 hover:to-zinc-700 text-white rounded-xl disabled:opacity-50 disabled:cursor-not-allowed transition-all shadow-lg shadow-zinc-900/50 border border-zinc-600/30"
+                className={`p-3 rounded-xl transition-all ${
+                  input.trim() && !isLoading
+                    ? isDark
+                      ? 'bg-gradient-to-r from-zinc-600 to-zinc-700 text-white hover:from-zinc-500 hover:to-zinc-600'
+                      : 'bg-gradient-to-r from-blue-500 to-blue-600 text-white hover:from-blue-600 hover:to-blue-700'
+                    : isDark
+                      ? 'bg-zinc-700/50 text-zinc-500'
+                      : 'bg-gray-100 text-gray-400'
+                }`}
               >
                 <Send className="w-5 h-5" />
               </button>
             </div>
-            <p className="text-center text-xs text-zinc-500 mt-2">
-              Press Enter to send • Shift+Enter for new line
-            </p>
           </div>
-        </div>
-      </main>
-    </div>
-  );
-}
+        </main>
 
-// Welcome Screen Component
-function WelcomeScreen({ mode, hasDocuments }) {
-  return (
-    <div className="h-full flex flex-col items-center justify-center text-center px-4 py-12">
-      <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-zinc-600/20 to-zinc-800/20 border border-zinc-500/30 flex items-center justify-center mb-6 shadow-lg shadow-zinc-900/50">
-        <Sparkles className="w-10 h-10 text-zinc-300" />
-      </div>
-      
-      <h2 className="text-3xl font-bold text-white mb-2">Welcome to AI Assistant</h2>
-      <p className="text-zinc-400 max-w-lg mb-8">
-        {mode === 'rag'
-          ? hasDocuments
-            ? 'Ask questions about your uploaded documents. Responses are grounded in your content.'
-            : 'Upload documents in the sidebar to enable RAG mode. Your questions will be answered based on the content.'
-          : mode === 'general'
-          ? 'Ask any question and get intelligent responses from the AI model.'
-          : 'Auto mode intelligently routes your questions to RAG or General mode based on context.'}
-      </p>
-
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4 max-w-3xl">
-        <FeatureCard
-          icon={Upload}
-          title="Multi-Format Upload"
-          description="PDF, DOCX, XLSX, TXT, MD, and URLs"
-        />
-        <FeatureCard
-          icon={Database}
-          title="Hybrid Search"
-          description="Vector + keyword search for accuracy"
-        />
-        <FeatureCard
-          icon={BookOpen}
-          title="Source Citations"
-          description="Every answer includes references"
-        />
-      </div>
-    </div>
-  );
-}
-
-// Feature Card Component
-function FeatureCard({ icon: Icon, title, description }) {
-  return (
-    <div className="p-5 glass rounded-xl hover:bg-zinc-700/30 transition-colors border border-zinc-700/30">
-      <Icon className="w-8 h-8 text-zinc-300 mb-3" />
-      <h3 className="font-semibold text-white mb-1">{title}</h3>
-      <p className="text-sm text-zinc-400">{description}</p>
-    </div>
-  );
-}
-
-// Message Bubble Component
-function MessageBubble({ message, index, expandedSources, toggleSources }) {
-  if (message.type === 'system') {
-    return (
-      <div className="flex justify-center animate-message">
-        <div className="glass rounded-full px-4 py-2 text-sm text-zinc-300 flex items-center gap-2 border border-zinc-700/30">
-          <CheckCircle2 className="w-4 h-4 text-green-400" />
-          {message.content}
-        </div>
-      </div>
-    );
-  }
-
-  if (message.type === 'error') {
-    return (
-      <div className="flex justify-center animate-message">
-        <div className="bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 text-sm text-red-300 flex items-center gap-2">
-          <AlertCircle className="w-4 h-4 text-red-400" />
-          {message.content}
-        </div>
-      </div>
-    );
-  }
-
-  if (message.type === 'user') {
-    return (
-      <div className="flex justify-end gap-3 animate-message">
-        <div className="bg-gradient-to-br from-zinc-600 to-zinc-700 rounded-2xl rounded-tr-sm px-4 py-3 max-w-[80%] text-white shadow-lg border border-zinc-500/30">
-          {message.content}
-        </div>
-        <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-500 to-zinc-700 flex items-center justify-center flex-shrink-0 ring-2 ring-zinc-600/50">
-          <User className="w-5 h-5 text-white" />
-        </div>
-      </div>
-    );
-  }
-
-  // Assistant message
-  return (
-    <div className="flex gap-4 animate-message">
-      <div className="w-10 h-10 rounded-full bg-gradient-to-br from-zinc-500 to-zinc-700 flex items-center justify-center flex-shrink-0 ring-2 ring-zinc-600/50">
-        <Bot className="w-5 h-5 text-white" />
-      </div>
-      <div className="flex-1 min-w-0 space-y-3">
-        {/* Mode indicator */}
-        {message.mode && (
-          <div className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-xs ${
-            message.mode === 'rag'
-              ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-              : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+        {/* Upload Panel */}
+        {showUploadPanel && (
+          <aside className={`w-80 border-l p-4 overflow-y-auto ${
+            isDark 
+              ? 'bg-zinc-900/50 border-zinc-700/50' 
+              : 'bg-gray-50 border-gray-200'
           }`}>
-            {message.mode === 'rag' ? <Database className="w-3 h-3" /> : <Brain className="w-3 h-3" />}
-            {message.mode === 'rag' ? 'RAG Response' : 'General Response'}
-          </div>
-        )}
+            <div className="flex items-center justify-between mb-4">
+              <h2 className={`font-semibold ${isDark ? 'text-white' : 'text-gray-900'}`}>Documents</h2>
+              <button
+                onClick={() => setShowUploadPanel(false)}
+                className={isDark ? 'text-zinc-500 hover:text-white' : 'text-gray-400 hover:text-gray-600'}
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
 
-        {/* Message content */}
-        <div className="glass rounded-2xl rounded-tl-sm px-4 py-3 text-zinc-200 border border-zinc-700/30">
-          <div className="markdown-content">
-            <ReactMarkdown>{message.content}</ReactMarkdown>
-          </div>
-        </div>
-
-        {/* Sources */}
-        {message.sources && message.sources.length > 0 && (
-          <div className="glass rounded-xl overflow-hidden border border-zinc-700/30">
-            <button
-              onClick={() => toggleSources(index)}
-              className="w-full flex items-center justify-between px-4 py-2.5 text-sm text-zinc-400 hover:text-white hover:bg-zinc-700/30 transition-colors"
+            {/* Dropzone */}
+            <div
+              {...getRootProps()}
+              className={`border-2 border-dashed rounded-xl p-6 text-center cursor-pointer transition-all mb-4 ${
+                isDragActive
+                  ? isDark
+                    ? 'border-zinc-500 bg-zinc-800/50'
+                    : 'border-blue-400 bg-blue-50'
+                  : isDark
+                    ? 'border-zinc-700 hover:border-zinc-600'
+                    : 'border-gray-300 hover:border-gray-400'
+              }`}
             >
-              <span className="flex items-center gap-2">
-                <FileText className="w-4 h-4" />
-                View {message.sources.length} source{message.sources.length > 1 ? 's' : ''}
-              </span>
-              <ChevronDown className={`w-4 h-4 transition-transform ${expandedSources[index] ? 'rotate-180' : ''}`} />
-            </button>
+              <input {...getInputProps()} />
+              <Upload className={`w-8 h-8 mx-auto mb-2 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`} />
+              <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                {isDragActive ? 'Drop files here' : 'Drag & drop or click to upload'}
+              </p>
+              <p className={`text-xs mt-1 ${isDark ? 'text-zinc-600' : 'text-gray-400'}`}>
+                PDF, DOCX, TXT, XLSX
+              </p>
+            </div>
 
-            {expandedSources[index] && (
-              <div className="border-t border-zinc-700/50 divide-y divide-zinc-700/50">
-                {message.sources.map((source, i) => (
-                  <div key={i} className="p-4 hover:bg-zinc-700/30 transition-colors">
-                    <div className="flex items-center gap-2 mb-2">
-                      <span className="px-2 py-0.5 bg-zinc-600/30 text-zinc-300 text-xs font-medium rounded border border-zinc-600/50">
-                        Source {source.id}
-                      </span>
-                      <span className="text-xs text-zinc-500">{source.source}</span>
-                      <span className="text-xs text-emerald-400 ml-auto">{source.score} match</span>
-                    </div>
-                    <p className="text-sm text-zinc-400 leading-relaxed">{source.content}</p>
+            {/* Uploading Files */}
+            {uploadingFiles.map((file) => (
+              <div
+                key={file.id}
+                className={`mb-2 p-3 rounded-lg ${
+                  isDark ? 'bg-zinc-800/50' : 'bg-white border border-gray-200'
+                }`}
+              >
+                <div className="flex items-center gap-2 mb-2">
+                  <FileText className={`w-4 h-4 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`} />
+                  <span className={`text-sm truncate flex-1 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+                    {file.name}
+                  </span>
+                  {file.completed && <CheckCircle className="w-4 h-4 text-green-500" />}
+                  {file.error && <AlertCircle className="w-4 h-4 text-red-500" />}
+                </div>
+                {!file.completed && !file.error && (
+                  <div className={`h-1 rounded-full overflow-hidden ${isDark ? 'bg-zinc-700' : 'bg-gray-200'}`}>
+                    <div
+                      className="h-full bg-gradient-to-r from-blue-500 to-cyan-500 transition-all"
+                      style={{ width: `${file.progress}%` }}
+                    />
                   </div>
-                ))}
+                )}
               </div>
-            )}
-          </div>
+            ))}
+
+            {/* Document List */}
+            <div className="space-y-2">
+              {documents.map((doc) => (
+                <div
+                  key={doc.id}
+                  className={`p-3 rounded-lg flex items-center gap-2 ${
+                    isDark 
+                      ? 'bg-zinc-800/50 border border-zinc-700/50' 
+                      : 'bg-white border border-gray-200'
+                  }`}
+                >
+                  <FileText className={`w-4 h-4 flex-shrink-0 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`} />
+                  <span className={`text-sm truncate flex-1 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+                    {doc.filename}
+                  </span>
+                  <button
+                    onClick={() => deleteDocument(doc.id)}
+                    className={`p-1 rounded transition-colors ${
+                      isDark 
+                        ? 'hover:bg-zinc-700 text-zinc-500 hover:text-red-400' 
+                        : 'hover:bg-gray-100 text-gray-400 hover:text-red-500'
+                    }`}
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
+                </div>
+              ))}
+
+              {documents.length === 0 && uploadingFiles.length === 0 && (
+                <p className={`text-sm text-center py-4 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>
+                  No documents uploaded yet
+                </p>
+              )}
+            </div>
+          </aside>
         )}
+        </div>
       </div>
     </div>
   );

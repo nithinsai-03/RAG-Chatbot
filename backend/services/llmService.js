@@ -87,15 +87,24 @@ export class LLMService {
 
   async generateOllama(prompt, context, conversationHistory) {
     const systemPrompt = context
-      ? `You are a helpful AI assistant that answers questions based on the provided context. 
-         Always cite your sources and indicate which part of the context your answer comes from.
-         If the context doesn't contain relevant information, say so clearly.
-         Do not make up information that isn't in the context.
-         Be concise but thorough in your responses.
-         
-         Context:
-         ${context}`
-      : `You are a helpful AI assistant. Provide accurate, helpful, and well-structured responses to user questions.`;
+      ? `You are an expert AI assistant specialized in answering questions based on document content.
+
+INSTRUCTIONS:
+1. Read the provided context carefully and thoroughly
+2. Answer the user's question using ONLY information from the context
+3. Be comprehensive - include all relevant details from the context
+4. If the context contains the answer, provide it with confidence
+5. Quote or paraphrase specific parts of the context to support your answer
+6. If information is partial, provide what you can find and mention what's missing
+7. If the context truly doesn't contain relevant information, say so clearly
+8. Organize your answer clearly with proper formatting
+9. Be detailed but concise - don't add information not in the context
+
+CONTEXT FROM DOCUMENTS:
+${context}
+
+Remember: Your answer must be based on the context above. Be thorough and accurate.`
+      : `You are a helpful AI assistant. Provide accurate, helpful, and well-structured responses to user questions. Be conversational and informative.`;
 
     const messages = [
       { role: 'system', content: systemPrompt },
@@ -116,8 +125,10 @@ export class LLMService {
           messages,
           stream: false,
           options: {
-            temperature: context ? 0.3 : 0.7,
-            num_predict: 2000
+            temperature: context ? 0.2 : 0.7,  // Lower temp for more focused RAG answers
+            num_predict: 3000,  // Allow longer responses
+            top_p: 0.9,
+            repeat_penalty: 1.1  // Reduce repetition
           }
         })
       });
@@ -222,21 +233,34 @@ export class LLMService {
       };
     }
 
-    // Build context from retrieved chunks
+    // Build context from retrieved chunks with better formatting
     const context = retrievedChunks
-      .map((chunk, i) => `[Source ${i + 1} - ${chunk.metadata.filename || chunk.metadata.url}]\n${chunk.content}`)
+      .map((chunk, i) => {
+        const source = chunk.metadata.filename || chunk.metadata.url || 'Document';
+        const section = chunk.metadata.chunkIndex !== undefined ? ` (Section ${chunk.metadata.chunkIndex + 1})` : '';
+        return `[SOURCE ${i + 1}: ${source}${section}]\n${chunk.content}`;
+      })
       .join('\n\n---\n\n');
 
     const answer = await this.generateResponse(query, context, conversationHistory);
 
-    // Format sources for citation
-    const sources = retrievedChunks.map((chunk, i) => ({
-      id: i + 1,
-      content: chunk.content,
-      source: chunk.metadata.filename || chunk.metadata.url || 'Unknown',
-      score: (chunk.score * 100).toFixed(1) + '%',
-      chunkIndex: chunk.metadata.chunkIndex
-    }));
+    // Format sources for citation - deduplicate by filename
+    const seenSources = new Set();
+    const sources = retrievedChunks
+      .filter(chunk => {
+        const source = chunk.metadata.filename || chunk.metadata.url || 'Unknown';
+        if (seenSources.has(source)) return false;
+        seenSources.add(source);
+        return true;
+      })
+      .map((chunk, i) => ({
+        id: i + 1,
+        content: chunk.content.substring(0, 200) + '...',
+        source: chunk.metadata.filename || chunk.metadata.url || 'Unknown',
+        filename: chunk.metadata.filename || 'Unknown',
+        score: (chunk.score * 100).toFixed(1) + '%',
+        chunkIndex: chunk.metadata.chunkIndex
+      }));
 
     return { answer, sources };
   }

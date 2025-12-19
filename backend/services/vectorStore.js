@@ -169,20 +169,41 @@ export class VectorStore {
     return results.slice(0, topK);
   }
 
-  async hybridSearch(query, topK = 5) {
+  async hybridSearch(query, topK = 8) {
     if (this.chunks.length === 0) {
       return [];
     }
 
     const queryEmbedding = await this.generateEmbedding(query);
     const queryKeywords = this.extractKeywords(query);
+    const queryLower = query.toLowerCase();
 
     const results = this.chunks.map(chunk => {
       const vectorScore = this.cosineSimilarity(queryEmbedding, chunk.embedding);
       const keywordScore = this.keywordMatch(queryKeywords, chunk.keywords);
       
-      // Combine scores (70% vector, 30% keyword)
-      const combinedScore = (vectorScore * 0.7) + (keywordScore * 0.3);
+      // Boost score if exact phrases are found
+      const contentLower = chunk.content.toLowerCase();
+      let phraseBoost = 0;
+      
+      // Check for exact phrase matches (important words from query)
+      const importantWords = queryKeywords.slice(0, 5);
+      for (const word of importantWords) {
+        if (contentLower.includes(word)) {
+          phraseBoost += 0.05;
+        }
+      }
+      
+      // Check if query words appear close together (phrase proximity)
+      if (importantWords.length >= 2) {
+        const twoWordPhrase = importantWords.slice(0, 2).join(' ');
+        if (contentLower.includes(twoWordPhrase)) {
+          phraseBoost += 0.1;
+        }
+      }
+      
+      // Combine scores (60% vector, 25% keyword, 15% phrase boost)
+      const combinedScore = (vectorScore * 0.6) + (keywordScore * 0.25) + Math.min(phraseBoost, 0.15);
 
       return {
         id: chunk.id,
@@ -191,6 +212,7 @@ export class VectorStore {
         docId: chunk.docId,
         vectorScore,
         keywordScore,
+        phraseBoost,
         score: combinedScore
       };
     });

@@ -2,7 +2,7 @@ export class ChatRouter {
   constructor(vectorStore, llmService) {
     this.vectorStore = vectorStore;
     this.llmService = llmService;
-    this.relevanceThreshold = 0.3;
+    this.relevanceThreshold = 0.15;  // Lower threshold to catch more matches
   }
 
   async route(query, requestedMode, conversationHistory = []) {
@@ -62,8 +62,8 @@ export class ChatRouter {
   async handleRAGQuery(query, conversationHistory) {
     console.log('Handling RAG query...');
     
-    // Retrieve relevant chunks
-    const retrievedChunks = await this.vectorStore.hybridSearch(query, 5);
+    // Retrieve more chunks for better context (increased from 5 to 8)
+    const retrievedChunks = await this.vectorStore.hybridSearch(query, 8);
     
     // Filter by relevance threshold
     const relevantChunks = retrievedChunks.filter(
@@ -71,6 +71,21 @@ export class ChatRouter {
     );
 
     if (relevantChunks.length === 0) {
+      // Try with even lower threshold as fallback
+      const fallbackChunks = retrievedChunks.filter(chunk => chunk.score >= 0.1);
+      if (fallbackChunks.length > 0) {
+        const response = await this.llmService.generateRAGResponse(
+          query,
+          fallbackChunks.slice(0, 5),
+          conversationHistory
+        );
+        return {
+          ...response,
+          mode: 'rag',
+          retrievedCount: fallbackChunks.length
+        };
+      }
+      
       return {
         answer: "I searched through the uploaded documents but couldn't find information directly relevant to your question. Try rephrasing your question or ask something more specific about the document content.",
         mode: 'rag',
