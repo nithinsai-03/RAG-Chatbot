@@ -22,7 +22,16 @@ import {
   Plus,
   MessageCircle,
   Trash2,
-  Menu
+  Menu,
+  Settings,
+  HelpCircle,
+  Crown,
+  Sliders,
+  ChevronRight,
+  Mic,
+  MicOff,
+  Volume2,
+  VolumeX
 } from 'lucide-react';
 import { LoginPage, SignupPage } from './components/Auth';
 
@@ -89,6 +98,17 @@ function App() {
   const [mode, setMode] = useState('auto');
   const [conversationId, setConversationId] = useState(null);
 
+  // Voice Assistant state
+  const [isListening, setIsListening] = useState(false);
+  const [isSpeaking, setIsSpeaking] = useState(false);
+  const [voiceEnabled, setVoiceEnabled] = useState(() => {
+    const saved = localStorage.getItem('voiceEnabled');
+    return saved ? JSON.parse(saved) : true;
+  });
+  const [speechSupported, setSpeechSupported] = useState(false);
+  const recognitionRef = useRef(null);
+  const synthesisRef = useRef(null);
+
   // Document state
   const [documents, setDocuments] = useState([]);
   const [uploadingFiles, setUploadingFiles] = useState([]);
@@ -101,9 +121,58 @@ function App() {
   });
   const [currentChatId, setCurrentChatId] = useState(null);
   const [showSidebar, setShowSidebar] = useState(true);
+  const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const [currentPage, setCurrentPage] = useState('chat'); // 'chat', 'settings', 'personalization', 'help'
+
+  // Settings state with localStorage persistence
+  const [settings, setSettings] = useState(() => {
+    const saved = localStorage.getItem('appSettings');
+    return saved ? JSON.parse(saved) : {
+      language: 'English',
+      saveChatHistory: true,
+      responseStyle: 'Balanced',
+      defaultMode: 'auto',
+      accentColor: '#8B5CF6',
+      compactMode: false,
+      customInstructions: '',
+      notifications: true,
+      soundEffects: false
+    };
+  });
+
+  // Update settings function
+  const updateSettings = (key, value) => {
+    setSettings(prev => {
+      const updated = { ...prev, [key]: value };
+      localStorage.setItem('appSettings', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  // Clear all user data
+  const clearAllData = () => {
+    if (confirm('Are you sure you want to delete all data? This cannot be undone.')) {
+      localStorage.removeItem('chatHistory');
+      localStorage.removeItem('appSettings');
+      setChatHistory([]);
+      setMessages([]);
+      setSettings({
+        language: 'English',
+        saveChatHistory: true,
+        responseStyle: 'Balanced',
+        defaultMode: 'auto',
+        accentColor: '#8B5CF6',
+        compactMode: false,
+        customInstructions: '',
+        notifications: true,
+        soundEffects: false
+      });
+    }
+  };
 
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const profileMenuRef = useRef(null);
 
   const MODES = getModes(isDark);
 
@@ -139,6 +208,151 @@ function App() {
 
   useEffect(() => {
     fetchDocuments();
+  }, []);
+
+  // Initialize Speech Recognition and Synthesis
+  useEffect(() => {
+    // Check for browser support
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    
+    if (SpeechRecognition) {
+      setSpeechSupported(true);
+      const recognition = new SpeechRecognition();
+      recognition.continuous = false;
+      recognition.interimResults = true;
+      recognition.lang = 'en-US';
+
+      recognition.onstart = () => {
+        setIsListening(true);
+      };
+
+      recognition.onresult = (event) => {
+        const transcript = Array.from(event.results)
+          .map(result => result[0])
+          .map(result => result.transcript)
+          .join('');
+        
+        setInput(transcript);
+        
+        // If it's a final result, auto-submit
+        if (event.results[0].isFinal) {
+          setTimeout(() => {
+            setIsListening(false);
+          }, 500);
+        }
+      };
+
+      recognition.onerror = (event) => {
+        console.error('Speech recognition error:', event.error);
+        setIsListening(false);
+      };
+
+      recognition.onend = () => {
+        setIsListening(false);
+      };
+
+      recognitionRef.current = recognition;
+    }
+
+    // Initialize speech synthesis
+    if ('speechSynthesis' in window) {
+      synthesisRef.current = window.speechSynthesis;
+    }
+
+    return () => {
+      if (recognitionRef.current) {
+        recognitionRef.current.abort();
+      }
+      if (synthesisRef.current) {
+        synthesisRef.current.cancel();
+      }
+    };
+  }, []);
+
+  // Voice Assistant Functions
+  const startListening = () => {
+    if (recognitionRef.current && !isListening) {
+      try {
+        recognitionRef.current.start();
+      } catch (error) {
+        console.error('Error starting speech recognition:', error);
+      }
+    }
+  };
+
+  const stopListening = () => {
+    if (recognitionRef.current && isListening) {
+      recognitionRef.current.stop();
+    }
+  };
+
+  const speakText = (text) => {
+    if (synthesisRef.current && voiceEnabled) {
+      // Cancel any ongoing speech
+      synthesisRef.current.cancel();
+      
+      // Clean the text (remove markdown, code blocks, etc.)
+      const cleanText = text
+        .replace(/```[\s\S]*?```/g, 'Code block omitted.')
+        .replace(/`[^`]+`/g, '')
+        .replace(/\*\*([^*]+)\*\*/g, '$1')
+        .replace(/\*([^*]+)\*/g, '$1')
+        .replace(/#{1,6}\s/g, '')
+        .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
+        .replace(/\n+/g, '. ')
+        .trim();
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
+      utterance.rate = 1.0;
+      utterance.pitch = 1.0;
+      utterance.volume = 1.0;
+      
+      // Try to use a good voice
+      const voices = synthesisRef.current.getVoices();
+      const preferredVoice = voices.find(v => 
+        v.name.includes('Samantha') || 
+        v.name.includes('Google') || 
+        v.name.includes('Microsoft') ||
+        v.lang.startsWith('en')
+      );
+      if (preferredVoice) {
+        utterance.voice = preferredVoice;
+      }
+
+      utterance.onstart = () => setIsSpeaking(true);
+      utterance.onend = () => setIsSpeaking(false);
+      utterance.onerror = () => setIsSpeaking(false);
+
+      synthesisRef.current.speak(utterance);
+    }
+  };
+
+  const stopSpeaking = () => {
+    if (synthesisRef.current) {
+      synthesisRef.current.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
+  const toggleVoiceEnabled = () => {
+    const newValue = !voiceEnabled;
+    setVoiceEnabled(newValue);
+    localStorage.setItem('voiceEnabled', JSON.stringify(newValue));
+    if (!newValue && synthesisRef.current) {
+      synthesisRef.current.cancel();
+      setIsSpeaking(false);
+    }
+  };
+
+  // Close profile menu when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (profileMenuRef.current && !profileMenuRef.current.contains(event.target)) {
+        setShowProfileMenu(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
   // Fetch documents
@@ -264,6 +478,11 @@ function App() {
         return newMessages;
       });
       setConversationId(response.data.conversationId);
+
+      // Speak the response if voice is enabled
+      if (voiceEnabled && response.data.answer) {
+        speakText(response.data.answer);
+      }
     } catch (error) {
       console.error('Error sending message:', error);
       const errorMessage = {
@@ -335,6 +554,660 @@ function App() {
     } catch (error) {
       console.error('Error deleting document:', error);
     }
+  };
+
+  // Settings Page Component
+  const SettingsPage = () => {
+    const [emailEdit, setEmailEdit] = useState(false);
+    const [newEmail, setNewEmail] = useState(user?.email || '');
+    const [showSuccess, setShowSuccess] = useState('');
+
+    const handleEmailSave = () => {
+      if (newEmail && newEmail !== user?.email) {
+        const updatedUser = { ...user, email: newEmail };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setShowSuccess('Email updated successfully!');
+        setTimeout(() => setShowSuccess(''), 3000);
+      }
+      setEmailEdit(false);
+    };
+
+    return (
+    <div className={`flex-1 overflow-y-auto p-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+      <div className="max-w-2xl mx-auto">
+        <button
+          onClick={() => setCurrentPage('chat')}
+          className={`mb-6 flex items-center gap-2 ${isDark ? 'text-zinc-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+        >
+          ← Back to Chat
+        </button>
+        <h1 className="text-2xl font-bold mb-6">Settings</h1>
+        
+        {showSuccess && (
+          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-500 text-sm flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            {showSuccess}
+          </div>
+        )}
+        
+        <div className="space-y-6">
+          {/* General Settings */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">General</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Theme</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Choose light or dark mode</p>
+                </div>
+                <button
+                  onClick={toggleTheme}
+                  className={`px-4 py-2 rounded-lg flex items-center gap-2 ${isDark ? 'bg-zinc-700 text-white hover:bg-zinc-600' : 'bg-gray-100 text-gray-900 hover:bg-gray-200'}`}
+                >
+                  {isDark ? <Moon className="w-4 h-4" /> : <Sun className="w-4 h-4" />}
+                  {isDark ? 'Dark' : 'Light'}
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Language</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Select your preferred language</p>
+                </div>
+                <select 
+                  value={settings.language}
+                  onChange={(e) => updateSettings('language', e.target.value)}
+                  className={`px-4 py-2 rounded-lg cursor-pointer ${isDark ? 'bg-zinc-700 text-white border-zinc-600' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                >
+                  <option value="English">English</option>
+                  <option value="Spanish">Spanish</option>
+                  <option value="French">French</option>
+                  <option value="German">German</option>
+                  <option value="Hindi">Hindi</option>
+                </select>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Notifications</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Receive system notifications</p>
+                </div>
+                <button
+                  onClick={() => updateSettings('notifications', !settings.notifications)}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${settings.notifications ? (isDark ? 'bg-purple-600' : 'bg-blue-500') : (isDark ? 'bg-zinc-600' : 'bg-gray-300')}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.notifications ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Sound Effects</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Play sounds for actions</p>
+                </div>
+                <button
+                  onClick={() => updateSettings('soundEffects', !settings.soundEffects)}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${settings.soundEffects ? (isDark ? 'bg-purple-600' : 'bg-blue-500') : (isDark ? 'bg-zinc-600' : 'bg-gray-300')}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.soundEffects ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Privacy Settings */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Privacy</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Save Chat History</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Store conversations locally</p>
+                </div>
+                <button
+                  onClick={() => updateSettings('saveChatHistory', !settings.saveChatHistory)}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${settings.saveChatHistory ? (isDark ? 'bg-purple-600' : 'bg-blue-500') : (isDark ? 'bg-zinc-600' : 'bg-gray-300')}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.saveChatHistory ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Clear All Data</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Delete all local data and history</p>
+                </div>
+                <button 
+                  onClick={clearAllData}
+                  className="px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 transition-colors"
+                >
+                  Clear Data
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Account Settings */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Account</h2>
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <div className="flex-1">
+                  <p className="font-medium">Email</p>
+                  {emailEdit ? (
+                    <input
+                      type="email"
+                      value={newEmail}
+                      onChange={(e) => setNewEmail(e.target.value)}
+                      className={`mt-1 w-full px-3 py-2 rounded-lg ${isDark ? 'bg-zinc-700 text-white border-zinc-600' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                    />
+                  ) : (
+                    <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>{user?.email || 'user@example.com'}</p>
+                  )}
+                </div>
+                {emailEdit ? (
+                  <div className="flex gap-2 ml-4">
+                    <button onClick={handleEmailSave} className={`px-3 py-1 rounded-lg bg-green-500 text-white hover:bg-green-600`}>Save</button>
+                    <button onClick={() => setEmailEdit(false)} className={`px-3 py-1 rounded-lg ${isDark ? 'bg-zinc-700' : 'bg-gray-100'}`}>Cancel</button>
+                  </div>
+                ) : (
+                  <button 
+                    onClick={() => setEmailEdit(true)}
+                    className={`px-4 py-2 rounded-lg ${isDark ? 'bg-zinc-700 hover:bg-zinc-600' : 'bg-gray-100 hover:bg-gray-200'} ml-4`}
+                  >
+                    Change
+                  </button>
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Account Type</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                    {user?.provider === 'google' ? '🔗 Connected with Google' : '📧 Email & Password'}
+                  </p>
+                </div>
+                {user?.provider === 'google' && user?.picture && (
+                  <img src={user.picture} alt="Profile" className="w-10 h-10 rounded-full" />
+                )}
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Sign Out</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Log out from your account</p>
+                </div>
+                <button 
+                  onClick={handleLogout}
+                  className="px-4 py-2 rounded-lg bg-red-500/10 text-red-500 hover:bg-red-500/20 flex items-center gap-2"
+                >
+                  <LogOut className="w-4 h-4" />
+                  Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )};
+
+  // Personalization Page Component
+  const PersonalizationPage = () => {
+    const [customText, setCustomText] = useState(settings.customInstructions);
+    const [showSaved, setShowSaved] = useState(false);
+
+    const handleSaveInstructions = () => {
+      updateSettings('customInstructions', customText);
+      setShowSaved(true);
+      setTimeout(() => setShowSaved(false), 3000);
+    };
+
+    return (
+    <div className={`flex-1 overflow-y-auto p-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+      <div className="max-w-2xl mx-auto">
+        <button
+          onClick={() => setCurrentPage('chat')}
+          className={`mb-6 flex items-center gap-2 ${isDark ? 'text-zinc-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+        >
+          ← Back to Chat
+        </button>
+        <h1 className="text-2xl font-bold mb-6">Personalization</h1>
+        
+        {showSaved && (
+          <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-500 text-sm flex items-center gap-2">
+            <CheckCircle className="w-4 h-4" />
+            Settings saved successfully!
+          </div>
+        )}
+        
+        <div className="space-y-6">
+          {/* AI Behavior */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">AI Behavior</h2>
+            <div className="space-y-4">
+              <div>
+                <p className="font-medium mb-2">Response Style</p>
+                <div className="flex gap-2">
+                  {['Concise', 'Balanced', 'Detailed'].map((style) => (
+                    <button
+                      key={style}
+                      onClick={() => updateSettings('responseStyle', style)}
+                      className={`px-4 py-2 rounded-lg transition-all ${settings.responseStyle === style 
+                        ? isDark ? 'bg-purple-600 text-white' : 'bg-blue-500 text-white'
+                        : isDark ? 'bg-zinc-700 text-zinc-300 hover:bg-zinc-600' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      {style}
+                    </button>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <p className="font-medium mb-2">Default Mode</p>
+                <select 
+                  value={settings.defaultMode}
+                  onChange={(e) => {
+                    updateSettings('defaultMode', e.target.value);
+                    setMode(e.target.value);
+                  }}
+                  className={`w-full px-4 py-2 rounded-lg cursor-pointer ${isDark ? 'bg-zinc-700 text-white border-zinc-600' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                >
+                  <option value="auto">Auto - Intelligently switches</option>
+                  <option value="rag">Documents - Search uploaded files</option>
+                  <option value="general">General - AI assistant</option>
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Appearance */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Appearance</h2>
+            <div className="space-y-4">
+              <div>
+                <p className="font-medium mb-2">Accent Color</p>
+                <div className="flex gap-3">
+                  {[
+                    { color: '#8B5CF6', name: 'Purple' },
+                    { color: '#3B82F6', name: 'Blue' },
+                    { color: '#10B981', name: 'Green' },
+                    { color: '#F59E0B', name: 'Orange' },
+                    { color: '#EF4444', name: 'Red' },
+                    { color: '#EC4899', name: 'Pink' }
+                  ].map(({ color, name }) => (
+                    <button
+                      key={color}
+                      onClick={() => updateSettings('accentColor', color)}
+                      className={`w-10 h-10 rounded-full transition-transform hover:scale-110 ${settings.accentColor === color ? 'ring-2 ring-offset-2 ring-offset-zinc-900' : ''}`}
+                      style={{ backgroundColor: color, ringColor: color }}
+                      title={name}
+                    />
+                  ))}
+                </div>
+              </div>
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="font-medium">Compact Mode</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Reduce spacing and padding</p>
+                </div>
+                <button
+                  onClick={() => updateSettings('compactMode', !settings.compactMode)}
+                  className={`w-12 h-6 rounded-full relative transition-colors ${settings.compactMode ? (isDark ? 'bg-purple-600' : 'bg-blue-500') : (isDark ? 'bg-zinc-600' : 'bg-gray-300')}`}
+                >
+                  <div className={`absolute top-1 w-4 h-4 rounded-full bg-white transition-all ${settings.compactMode ? 'left-7' : 'left-1'}`} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* Custom Instructions */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Custom Instructions</h2>
+            <p className={`text-sm mb-3 ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+              Tell the AI about yourself and how you'd like it to respond
+            </p>
+            <textarea
+              value={customText}
+              onChange={(e) => setCustomText(e.target.value)}
+              placeholder="e.g., I'm a software developer. Please provide code examples when relevant. Keep explanations technical but clear..."
+              className={`w-full h-32 px-4 py-3 rounded-lg resize-none ${
+                isDark 
+                  ? 'bg-zinc-700 text-white placeholder-zinc-500 border-zinc-600' 
+                  : 'bg-gray-100 text-gray-900 placeholder-gray-400 border-gray-200'
+              } border focus:outline-none focus:ring-2 ${isDark ? 'focus:ring-purple-500' : 'focus:ring-blue-500'}`}
+            />
+            <div className="mt-3 flex items-center justify-between">
+              <span className={`text-xs ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>
+                {customText.length}/500 characters
+              </span>
+              <button 
+                onClick={handleSaveInstructions}
+                className={`px-4 py-2 rounded-lg ${isDark ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-500 hover:bg-blue-600'} text-white transition-colors`}
+              >
+                Save Instructions
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )};
+
+  // Help Page Component
+  const HelpPage = () => {
+    const [expandedFaq, setExpandedFaq] = useState(null);
+    const [contactForm, setContactForm] = useState({ subject: '', message: '' });
+    const [formSent, setFormSent] = useState(false);
+
+    const faqs = [
+      { q: 'How do I upload documents?', a: 'Click the "Upload" button in the header bar. You can drag and drop files or click to browse. Supported formats include PDF, DOCX, TXT, and XLSX. Files are processed locally for privacy.' },
+      { q: 'What file types are supported?', a: 'The chatbot supports PDF, DOCX (Word documents), TXT (plain text), and XLSX (Excel spreadsheets). Maximum file size is 10MB per file.' },
+      { q: 'How does Documents (RAG) mode work?', a: 'RAG (Retrieval-Augmented Generation) mode searches through your uploaded documents to find relevant information and uses it to provide accurate, contextual answers based on your content.' },
+      { q: 'What is Auto mode?', a: 'Auto mode intelligently decides whether to search your documents or use general AI knowledge based on your question. It provides the best of both worlds!' },
+      { q: 'Is my data private and secure?', a: 'Yes! All document processing happens locally on your device. Your files and conversations are stored only in your browser\'s local storage and are never sent to external servers (except for AI inference).' },
+      { q: 'How can I delete my data?', a: 'Go to Settings > Privacy > Clear All Data. This will permanently delete all your chat history, uploaded documents, and preferences.' },
+    ];
+
+    const handleContactSubmit = () => {
+      if (contactForm.subject && contactForm.message) {
+        setFormSent(true);
+        setContactForm({ subject: '', message: '' });
+        setTimeout(() => setFormSent(false), 5000);
+      }
+    };
+
+    return (
+    <div className={`flex-1 overflow-y-auto p-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+      <div className="max-w-2xl mx-auto">
+        <button
+          onClick={() => setCurrentPage('chat')}
+          className={`mb-6 flex items-center gap-2 ${isDark ? 'text-zinc-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+        >
+          ← Back to Chat
+        </button>
+        <h1 className="text-2xl font-bold mb-6">Help & Support</h1>
+        
+        <div className="space-y-6">
+          {/* Quick Links */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Quick Links</h2>
+            <div className="grid grid-cols-2 gap-3">
+              {[
+                { icon: Settings, label: 'Settings', page: 'settings' },
+                { icon: Sliders, label: 'Personalization', page: 'personalization' },
+                { icon: Upload, label: 'Upload Files', action: () => { setCurrentPage('chat'); setShowUploadPanel(true); } },
+                { icon: Plus, label: 'New Chat', action: () => { setCurrentPage('chat'); startNewChat(); } },
+              ].map((item, i) => (
+                <button
+                  key={i}
+                  onClick={item.action || (() => setCurrentPage(item.page))}
+                  className={`p-3 rounded-lg flex items-center gap-3 transition-colors ${isDark ? 'bg-zinc-700/50 hover:bg-zinc-700' : 'bg-gray-50 hover:bg-gray-100'}`}
+                >
+                  <item.icon className="w-5 h-5" />
+                  <span>{item.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* FAQ */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Frequently Asked Questions</h2>
+            <div className="space-y-2">
+              {faqs.map((faq, i) => (
+                <div 
+                  key={i} 
+                  className={`rounded-lg overflow-hidden ${isDark ? 'bg-zinc-700/50' : 'bg-gray-50'}`}
+                >
+                  <button
+                    onClick={() => setExpandedFaq(expandedFaq === i ? null : i)}
+                    className="w-full p-3 flex items-center justify-between text-left"
+                  >
+                    <span className="font-medium">{faq.q}</span>
+                    <ChevronRight className={`w-5 h-5 transition-transform ${expandedFaq === i ? 'rotate-90' : ''}`} />
+                  </button>
+                  {expandedFaq === i && (
+                    <div className={`px-3 pb-3 text-sm ${isDark ? 'text-zinc-400' : 'text-gray-600'}`}>
+                      {faq.a}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Keyboard Shortcuts */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Keyboard Shortcuts</h2>
+            <div className="space-y-2">
+              {[
+                { key: 'Enter', action: 'Send message' },
+                { key: 'Shift + Enter', action: 'New line in message' },
+                { key: 'Ctrl/⌘ + N', action: 'New chat' },
+                { key: 'Ctrl/⌘ + /', action: 'Toggle sidebar' },
+                { key: 'Ctrl/⌘ + U', action: 'Upload files' },
+                { key: 'Esc', action: 'Close dialogs' },
+              ].map((shortcut, i) => (
+                <div key={i} className="flex items-center justify-between py-1">
+                  <span className={isDark ? 'text-zinc-300' : 'text-gray-700'}>{shortcut.action}</span>
+                  <kbd className={`px-2 py-1 rounded text-sm font-mono ${isDark ? 'bg-zinc-700 text-zinc-300' : 'bg-gray-200 text-gray-700'}`}>
+                    {shortcut.key}
+                  </kbd>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Contact Support */}
+          <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <h2 className="font-semibold mb-4">Contact Support</h2>
+            {formSent ? (
+              <div className="p-4 bg-green-500/10 border border-green-500/30 rounded-lg text-green-500 flex items-center gap-2">
+                <CheckCircle className="w-5 h-5" />
+                Thank you! Your message has been sent. We'll get back to you soon.
+              </div>
+            ) : (
+              <div className="space-y-3">
+                <input
+                  type="text"
+                  placeholder="Subject"
+                  value={contactForm.subject}
+                  onChange={(e) => setContactForm(prev => ({ ...prev, subject: e.target.value }))}
+                  className={`w-full px-4 py-2 rounded-lg ${isDark ? 'bg-zinc-700 text-white border-zinc-600 placeholder-zinc-500' : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-400'} border`}
+                />
+                <textarea
+                  placeholder="Describe your issue or question..."
+                  value={contactForm.message}
+                  onChange={(e) => setContactForm(prev => ({ ...prev, message: e.target.value }))}
+                  className={`w-full h-24 px-4 py-3 rounded-lg resize-none ${isDark ? 'bg-zinc-700 text-white border-zinc-600 placeholder-zinc-500' : 'bg-gray-100 text-gray-900 border-gray-200 placeholder-gray-400'} border`}
+                />
+                <button 
+                  onClick={handleContactSubmit}
+                  disabled={!contactForm.subject || !contactForm.message}
+                  className={`px-4 py-2 rounded-lg ${isDark ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-500 hover:bg-blue-600'} text-white transition-colors disabled:opacity-50 disabled:cursor-not-allowed`}
+                >
+                  Send Message
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Version Info */}
+          <div className={`p-4 rounded-xl text-center ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+            <div className={`w-12 h-12 mx-auto mb-3 rounded-xl ${isDark ? 'bg-gradient-to-br from-purple-600 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-cyan-500'} flex items-center justify-center`}>
+              <Sparkles className="w-6 h-6 text-white" />
+            </div>
+            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>RAG Chatbot</p>
+            <p className={`text-sm ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>Version 2.0.0</p>
+            <p className={`text-xs mt-2 ${isDark ? 'text-zinc-600' : 'text-gray-400'}`}>
+              Built with ❤️ using React, Vite & Ollama
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+  )};
+
+  // Profile Page Component
+  const ProfilePage = () => {
+    const [editName, setEditName] = useState(false);
+    const [newName, setNewName] = useState(user?.name || '');
+    const [showSaved, setShowSaved] = useState(false);
+
+    const handleSaveName = () => {
+      if (newName && newName !== user?.name) {
+        const updatedUser = { ...user, name: newName };
+        setUser(updatedUser);
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setShowSaved(true);
+        setTimeout(() => setShowSaved(false), 3000);
+      }
+      setEditName(false);
+    };
+
+    return (
+      <div className={`flex-1 overflow-y-auto p-6 ${isDark ? 'text-white' : 'text-gray-900'}`}>
+        <div className="max-w-2xl mx-auto">
+          <button
+            onClick={() => setCurrentPage('chat')}
+            className={`mb-6 flex items-center gap-2 ${isDark ? 'text-zinc-400 hover:text-white' : 'text-gray-500 hover:text-gray-900'}`}
+          >
+            ← Back to Chat
+          </button>
+          <h1 className="text-2xl font-bold mb-6">My Profile</h1>
+          
+          {showSaved && (
+            <div className="mb-4 p-3 bg-green-500/10 border border-green-500/30 rounded-lg text-green-500 text-sm flex items-center gap-2">
+              <CheckCircle className="w-4 h-4" />
+              Profile updated successfully!
+            </div>
+          )}
+          
+          <div className="space-y-6">
+            {/* Profile Card */}
+            <div className={`p-6 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+              <div className="flex flex-col items-center text-center mb-6">
+                {user?.picture ? (
+                  <img 
+                    src={user.picture} 
+                    alt="Profile" 
+                    className="w-24 h-24 rounded-full mb-4 border-4 border-purple-500/20"
+                  />
+                ) : (
+                  <div className={`w-24 h-24 rounded-full flex items-center justify-center text-3xl font-bold mb-4 ${
+                    isDark ? 'bg-gradient-to-br from-purple-600 to-pink-600' : 'bg-gradient-to-br from-blue-500 to-cyan-500'
+                  } text-white`}>
+                    {user?.name?.charAt(0).toUpperCase() || 'U'}
+                  </div>
+                )}
+                {editName ? (
+                  <div className="flex gap-2 items-center">
+                    <input
+                      type="text"
+                      value={newName}
+                      onChange={(e) => setNewName(e.target.value)}
+                      className={`px-3 py-2 rounded-lg text-center ${isDark ? 'bg-zinc-700 text-white border-zinc-600' : 'bg-gray-100 text-gray-900 border-gray-200'} border`}
+                    />
+                    <button onClick={handleSaveName} className="px-3 py-2 rounded-lg bg-green-500 text-white">Save</button>
+                    <button onClick={() => setEditName(false)} className={`px-3 py-2 rounded-lg ${isDark ? 'bg-zinc-700' : 'bg-gray-100'}`}>Cancel</button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2">
+                    <h2 className="text-xl font-bold">{user?.name || 'User'}</h2>
+                    <button 
+                      onClick={() => setEditName(true)}
+                      className={`p-1 rounded ${isDark ? 'hover:bg-zinc-700' : 'hover:bg-gray-100'}`}
+                    >
+                      ✏️
+                    </button>
+                  </div>
+                )}
+                <p className={`${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>{user?.email}</p>
+                {user?.provider === 'google' && (
+                  <span className={`mt-2 px-3 py-1 rounded-full text-xs ${isDark ? 'bg-blue-500/20 text-blue-400' : 'bg-blue-100 text-blue-600'}`}>
+                    Connected with Google
+                  </span>
+                )}
+              </div>
+            </div>
+
+            {/* Stats */}
+            <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+              <h2 className="font-semibold mb-4">Activity Stats</h2>
+              <div className="grid grid-cols-3 gap-4">
+                <div className={`p-4 rounded-lg text-center ${isDark ? 'bg-zinc-700/50' : 'bg-gray-50'}`}>
+                  <p className="text-2xl font-bold">{chatHistory.length}</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Chats</p>
+                </div>
+                <div className={`p-4 rounded-lg text-center ${isDark ? 'bg-zinc-700/50' : 'bg-gray-50'}`}>
+                  <p className="text-2xl font-bold">{documents.length}</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Documents</p>
+                </div>
+                <div className={`p-4 rounded-lg text-center ${isDark ? 'bg-zinc-700/50' : 'bg-gray-50'}`}>
+                  <p className="text-2xl font-bold">{messages.length}</p>
+                  <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>Messages</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Account Info */}
+            <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+              <h2 className="font-semibold mb-4">Account Information</h2>
+              <div className="space-y-3">
+                <div className="flex justify-between items-center">
+                  <span className={isDark ? 'text-zinc-400' : 'text-gray-500'}>Account Type</span>
+                  <span className="font-medium">{user?.provider === 'google' ? 'Google Account' : 'Email Account'}</span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={isDark ? 'text-zinc-400' : 'text-gray-500'}>Plan</span>
+                  <span className="font-medium flex items-center gap-2">
+                    Free
+                    <button className={`text-xs px-2 py-1 rounded ${isDark ? 'bg-purple-600 hover:bg-purple-500' : 'bg-blue-500 hover:bg-blue-600'} text-white`}>
+                      Upgrade
+                    </button>
+                  </span>
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className={isDark ? 'text-zinc-400' : 'text-gray-500'}>Member Since</span>
+                  <span className="font-medium">{new Date().toLocaleDateString('en-US', { month: 'long', year: 'numeric' })}</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Quick Actions */}
+            <div className={`p-4 rounded-xl ${isDark ? 'bg-zinc-800/50 border border-zinc-700' : 'bg-white border border-gray-200 shadow-sm'}`}>
+              <h2 className="font-semibold mb-4">Quick Actions</h2>
+              <div className="grid grid-cols-2 gap-3">
+                <button
+                  onClick={() => setCurrentPage('settings')}
+                  className={`p-3 rounded-lg flex items-center gap-3 transition-colors ${isDark ? 'bg-zinc-700/50 hover:bg-zinc-700' : 'bg-gray-50 hover:bg-gray-100'}`}
+                >
+                  <Settings className="w-5 h-5" />
+                  <span>Settings</span>
+                </button>
+                <button
+                  onClick={() => setCurrentPage('personalization')}
+                  className={`p-3 rounded-lg flex items-center gap-3 transition-colors ${isDark ? 'bg-zinc-700/50 hover:bg-zinc-700' : 'bg-gray-50 hover:bg-gray-100'}`}
+                >
+                  <Sliders className="w-5 h-5" />
+                  <span>Personalization</span>
+                </button>
+                <button
+                  onClick={() => setCurrentPage('help')}
+                  className={`p-3 rounded-lg flex items-center gap-3 transition-colors ${isDark ? 'bg-zinc-700/50 hover:bg-zinc-700' : 'bg-gray-50 hover:bg-gray-100'}`}
+                >
+                  <HelpCircle className="w-5 h-5" />
+                  <span>Help</span>
+                </button>
+                <button
+                  onClick={handleLogout}
+                  className={`p-3 rounded-lg flex items-center gap-3 transition-colors bg-red-500/10 text-red-500 hover:bg-red-500/20`}
+                >
+                  <LogOut className="w-5 h-5" />
+                  <span>Sign Out</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   };
 
   // Show auth pages if not logged in
@@ -523,26 +1396,148 @@ function App() {
                   )}
                 </button>
 
-                {/* Logout button */}
-                <button
-                  onClick={handleLogout}
-                  className={`p-2 rounded-lg transition-colors ${
-                    isDark 
-                      ? 'text-zinc-400 hover:text-red-400 hover:bg-zinc-700/50' 
-                      : 'text-gray-600 hover:text-red-500 hover:bg-gray-200'
-                  }`}
-                  title="Logout"
-                >
-                  <LogOut className="w-5 h-5" />
-                </button>
+                {/* Profile button with dropdown */}
+                <div className="relative" ref={profileMenuRef}>
+                  <button
+                    onClick={() => setShowProfileMenu(!showProfileMenu)}
+                    className={`flex items-center gap-2 p-1 rounded-xl transition-all ${
+                      isDark ? 'hover:bg-zinc-700/50' : 'hover:bg-gray-200'
+                    }`}
+                  >
+                    <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white font-medium text-sm ${
+                      isDark ? 'bg-purple-600' : 'bg-blue-500'
+                    }`}>
+                      {user?.name?.charAt(0).toUpperCase() || 'U'}
+                    </div>
+                  </button>
+
+                  {/* Profile Dropdown Menu */}
+                  {showProfileMenu && (
+                    <div className={`absolute right-0 top-12 w-64 rounded-xl shadow-xl border z-50 overflow-hidden ${
+                      isDark 
+                        ? 'bg-zinc-800 border-zinc-700' 
+                        : 'bg-white border-gray-200'
+                    }`}>
+                      {/* User Info */}
+                      <div className={`p-4 border-b ${isDark ? 'border-zinc-700' : 'border-gray-200'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-full flex items-center justify-center text-white font-medium ${
+                            isDark ? 'bg-purple-600' : 'bg-blue-500'
+                          }`}>
+                            {user?.name?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div>
+                            <p className={`font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {user?.name || 'User'}
+                            </p>
+                            <p className={`text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                              @{user?.email?.split('@')[0] || 'user'}
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Menu Items */}
+                      <div className="p-2">
+                        <button
+                          onClick={() => { setShowProfileMenu(false); setCurrentPage('profile'); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                            isDark ? 'hover:bg-zinc-700 text-zinc-300' : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <User className="w-5 h-5" />
+                          <span>My Profile</span>
+                        </button>
+                        <button
+                          onClick={() => { setShowProfileMenu(false); /* Upgrade logic */ }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                            isDark ? 'hover:bg-zinc-700 text-zinc-300' : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <Crown className="w-5 h-5" />
+                          <span>Upgrade plan</span>
+                        </button>
+                        <button
+                          onClick={() => { setShowProfileMenu(false); setCurrentPage('personalization'); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                            isDark ? 'hover:bg-zinc-700 text-zinc-300' : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <Sliders className="w-5 h-5" />
+                          <span>Personalization</span>
+                        </button>
+                        <button
+                          onClick={() => { setShowProfileMenu(false); setCurrentPage('settings'); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                            isDark ? 'hover:bg-zinc-700 text-zinc-300' : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <Settings className="w-5 h-5" />
+                          <span>Settings</span>
+                        </button>
+                        <button
+                          onClick={() => { setShowProfileMenu(false); setCurrentPage('help'); }}
+                          className={`w-full flex items-center justify-between px-3 py-2 rounded-lg transition-colors ${
+                            isDark ? 'hover:bg-zinc-700 text-zinc-300' : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <div className="flex items-center gap-3">
+                            <HelpCircle className="w-5 h-5" />
+                            <span>Help</span>
+                          </div>
+                          <ChevronRight className="w-4 h-4" />
+                        </button>
+                      </div>
+
+                      {/* Logout */}
+                      <div className={`p-2 border-t ${isDark ? 'border-zinc-700' : 'border-gray-200'}`}>
+                        <button
+                          onClick={() => { setShowProfileMenu(false); handleLogout(); }}
+                          className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg transition-colors ${
+                            isDark ? 'hover:bg-zinc-700 text-zinc-300' : 'hover:bg-gray-100 text-gray-700'
+                          }`}
+                        >
+                          <LogOut className="w-5 h-5" />
+                          <span>Log out</span>
+                        </button>
+                      </div>
+
+                      {/* Active Session */}
+                      <div className={`p-3 border-t ${isDark ? 'border-zinc-700 bg-zinc-800/50' : 'border-gray-200 bg-gray-50'}`}>
+                        <div className="flex items-center gap-3">
+                          <div className={`w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-medium ${
+                            isDark ? 'bg-purple-600' : 'bg-blue-500'
+                          }`}>
+                            {user?.name?.charAt(0).toUpperCase() || 'U'}
+                          </div>
+                          <div>
+                            <p className={`text-sm font-medium ${isDark ? 'text-white' : 'text-gray-900'}`}>
+                              {user?.name || 'User'}
+                            </p>
+                            <p className={`text-xs ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>
+                              Active now
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
           </div>
         </header>
 
         <div className="flex-1 flex overflow-hidden">
-          {/* Main Chat Area */}
-          <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
+          {/* Render different pages based on currentPage */}
+          {currentPage === 'settings' && <SettingsPage />}
+          {currentPage === 'personalization' && <PersonalizationPage />}
+          {currentPage === 'help' && <HelpPage />}
+          {currentPage === 'profile' && <ProfilePage />}
+          
+          {/* Main Chat Area - only show when on chat page */}
+          {currentPage === 'chat' && (
+            <main className="flex-1 flex flex-col max-w-4xl mx-auto w-full">
             {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
               {messages.length === 0 && (
@@ -622,6 +1617,24 @@ function App() {
                       </div>
                     </div>
                   )}
+                  
+                  {/* Read Aloud Button for assistant messages */}
+                  {message.role === 'assistant' && !message.isError && (
+                    <div className={`mt-2 pt-2 border-t ${isDark ? 'border-zinc-700/50' : 'border-gray-100'}`}>
+                      <button
+                        onClick={() => speakText(message.content)}
+                        className={`flex items-center gap-1 text-xs px-2 py-1 rounded-lg transition-colors ${
+                          isDark 
+                            ? 'text-zinc-500 hover:text-zinc-300 hover:bg-zinc-700/50' 
+                            : 'text-gray-400 hover:text-gray-600 hover:bg-gray-100'
+                        }`}
+                        title="Read aloud"
+                      >
+                        <Volume2 className="w-3 h-3" />
+                        Read aloud
+                      </button>
+                    </div>
+                  )}
                 </div>
 
                 {message.role === 'user' && (
@@ -668,19 +1681,56 @@ function App() {
                 ? 'bg-zinc-800/50 border border-zinc-700/50' 
                 : 'bg-white border border-gray-200 shadow-sm'
             }`}>
+              {/* Voice Input Button */}
+              {speechSupported && (
+                <button
+                  onClick={isListening ? stopListening : startListening}
+                  className={`p-3 rounded-xl transition-all ${
+                    isListening
+                      ? 'bg-red-500 text-white animate-pulse'
+                      : isDark
+                        ? 'bg-zinc-700/50 text-zinc-400 hover:bg-zinc-700 hover:text-white'
+                        : 'bg-gray-100 text-gray-500 hover:bg-gray-200 hover:text-gray-700'
+                  }`}
+                  title={isListening ? 'Stop listening' : 'Voice input'}
+                >
+                  {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                </button>
+              )}
+              
               <input
                 ref={inputRef}
                 type="text"
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && sendMessage()}
-                placeholder="Type your message..."
+                placeholder={isListening ? "Listening..." : "Type your message..."}
                 className={`flex-1 px-4 py-3 bg-transparent outline-none ${
                   isDark 
                     ? 'text-white placeholder-zinc-500' 
                     : 'text-gray-900 placeholder-gray-400'
-                }`}
+                } ${isListening ? 'animate-pulse' : ''}`}
               />
+
+              {/* Voice Output Toggle */}
+              <button
+                onClick={isSpeaking ? stopSpeaking : toggleVoiceEnabled}
+                className={`p-3 rounded-xl transition-all ${
+                  isSpeaking
+                    ? 'bg-green-500 text-white animate-pulse'
+                    : voiceEnabled
+                      ? isDark
+                        ? 'bg-zinc-700/50 text-emerald-400 hover:bg-zinc-700'
+                        : 'bg-emerald-100 text-emerald-600 hover:bg-emerald-200'
+                      : isDark
+                        ? 'bg-zinc-700/50 text-zinc-500 hover:bg-zinc-700 hover:text-zinc-400'
+                        : 'bg-gray-100 text-gray-400 hover:bg-gray-200'
+                }`}
+                title={isSpeaking ? 'Stop speaking' : voiceEnabled ? 'Voice responses ON' : 'Voice responses OFF'}
+              >
+                {voiceEnabled ? <Volume2 className="w-5 h-5" /> : <VolumeX className="w-5 h-5" />}
+              </button>
+
               <button
                 onClick={sendMessage}
                 disabled={!input.trim() || isLoading}
@@ -697,11 +1747,30 @@ function App() {
                 <Send className="w-5 h-5" />
               </button>
             </div>
+            
+            {/* Voice Status Indicator */}
+            {(isListening || isSpeaking) && (
+              <div className={`mt-2 text-center text-sm ${isDark ? 'text-zinc-400' : 'text-gray-500'}`}>
+                {isListening && (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse" />
+                    Listening... Speak now
+                  </span>
+                )}
+                {isSpeaking && (
+                  <span className="flex items-center justify-center gap-2">
+                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse" />
+                    Speaking... Click speaker to stop
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </main>
+          )}
 
         {/* Upload Panel */}
-        {showUploadPanel && (
+        {showUploadPanel && currentPage === 'chat' && (
           <aside className={`w-80 border-l p-4 overflow-y-auto ${
             isDark 
               ? 'bg-zinc-900/50 border-zinc-700/50' 
