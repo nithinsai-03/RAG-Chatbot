@@ -46,7 +46,7 @@ body::before {
 }
 
 ::-webkit-scrollbar-thumb {
-  @apply bg-zinc-700 rounded-full hover:bg-zinc-600 transition-colors;
+  @apply bg-gray-700 rounded-full hover:bg-gray-600 transition-colors;
 }
 
 /* Text selection */
@@ -68,6 +68,70 @@ body::before {
     opacity: 1;
     transform: translateY(0) scale(1);
   }
+}
+
+/* Fade in animation */
+.animate-fade-in {
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+@keyframes fadeIn {
+  0% { opacity: 0; transform: translateY(10px); }
+  100% { opacity: 1; transform: translateY(0); }
+}
+
+/* Scale in animation */
+.animate-scale-in {
+  animation: scaleIn 0.2s ease-out forwards;
+}
+
+@keyframes scaleIn {
+  0% { opacity: 0; transform: scale(0.95); }
+  100% { opacity: 1; transform: scale(1); }
+}
+
+/* Slide in from right */
+.animate-slide-in-right {
+  animation: slideInRight 0.3s ease-out forwards;
+}
+
+@keyframes slideInRight {
+  0% { opacity: 0; transform: translateX(20px); }
+  100% { opacity: 1; transform: translateX(0); }
+}
+
+/* Bounce animation for icons */
+.animate-bounce-subtle {
+  animation: bounceSubtle 2s ease-in-out infinite;
+}
+
+@keyframes bounceSubtle {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-5px); }
+}
+
+/* Pulse ring animation */
+.animate-pulse-ring {
+  animation: pulseRing 1.5s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
+
+@keyframes pulseRing {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(139, 92, 246, 0.4); }
+  50% { box-shadow: 0 0 0 8px rgba(139, 92, 246, 0); }
+}
+
+/* Typing dots animation */
+.animate-typing-dots span {
+  animation: typingDots 1.4s infinite ease-in-out both;
+}
+
+.animate-typing-dots span:nth-child(1) { animation-delay: -0.32s; }
+.animate-typing-dots span:nth-child(2) { animation-delay: -0.16s; }
+.animate-typing-dots span:nth-child(3) { animation-delay: 0; }
+
+@keyframes typingDots {
+  0%, 80%, 100% { transform: scale(0.6); opacity: 0.5; }
+  40% { transform: scale(1); opacity: 1; }
 }
 
 .animate-typing {

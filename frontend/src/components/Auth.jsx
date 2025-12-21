@@ -115,17 +115,17 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 ${
       isDark 
-        ? 'bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900' 
+        ? 'bg-gradient-to-br from-[#171717] via-[#212121] to-[#171717]' 
         : 'bg-gradient-to-br from-gray-100 via-white to-gray-100'
     }`}>
       <div className={`w-full max-w-md ${
-        isDark ? 'bg-zinc-800/50 border-zinc-700' : 'bg-white border-gray-200'
+        isDark ? 'bg-[#2f2f2f]/50 border-[#3f3f3f]' : 'bg-white border-gray-200'
       } border rounded-2xl p-8 shadow-xl`}>
         {/* Logo */}
         <div className="text-center mb-8">
           <div className={`w-16 h-16 mx-auto rounded-2xl ${
             isDark 
-              ? 'bg-gradient-to-br from-zinc-600 to-zinc-800 border-zinc-500/30' 
+              ? 'bg-gradient-to-br from-[#3f3f3f] to-[#2f2f2f] border-[#4a4a4a]' 
               : 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400/30'
           } border flex items-center justify-center mb-4`}>
             <Bot className="w-8 h-8 text-white" />
@@ -133,7 +133,7 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
           <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Welcome Back
           </h1>
-          <p className={`mt-2 ${isDark ? 'text-zinc-400' : 'text-gray-600'}`}>
+          <p className={`mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Sign in to your AI Assistant
           </p>
         </div>
@@ -148,11 +148,11 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Email
             </label>
             <div className="relative">
-              <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`} />
+              <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type="email"
                 value={email}
@@ -160,19 +160,19 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
                 placeholder="you@example.com"
                 className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
                   isDark 
-                    ? 'bg-zinc-900/50 border-zinc-700 text-white placeholder-zinc-500 focus:border-zinc-500' 
+                    ? 'bg-[#171717]/50 border-[#3f3f3f] text-white placeholder-gray-500 focus:border-[#5a5a5a]' 
                     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-zinc-500' : 'focus:ring-blue-500'}`}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-[#5a5a5a]' : 'focus:ring-blue-500'}`}
               />
             </div>
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Password
             </label>
             <div className="relative">
-              <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`} />
+              <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -180,14 +180,14 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
                 placeholder="••••••••"
                 className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
                   isDark 
-                    ? 'bg-zinc-900/50 border-zinc-700 text-white placeholder-zinc-500 focus:border-zinc-500' 
+                    ? 'bg-[#171717]/50 border-[#3f3f3f] text-white placeholder-gray-500 focus:border-[#5a5a5a]' 
                     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-zinc-500' : 'focus:ring-blue-500'}`}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-[#5a5a5a]' : 'focus:ring-blue-500'}`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -199,7 +199,7 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
             disabled={isLoading}
             className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
               isDark
-                ? 'bg-gradient-to-r from-zinc-600 to-zinc-700 hover:from-zinc-500 hover:to-zinc-600 text-white'
+                ? 'bg-gradient-to-r from-[#3f3f3f] to-[#4a4a4a] hover:from-[#4a4a4a] hover:to-[#5a5a5a] text-white'
                 : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
             } disabled:opacity-50`}
           >
@@ -216,9 +216,9 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
 
         {/* Divider */}
         <div className="my-6 flex items-center gap-4">
-          <div className={`flex-1 h-px ${isDark ? 'bg-zinc-700' : 'bg-gray-200'}`} />
-          <span className={`text-sm ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>or</span>
-          <div className={`flex-1 h-px ${isDark ? 'bg-zinc-700' : 'bg-gray-200'}`} />
+          <div className={`flex-1 h-px ${isDark ? 'bg-[#3f3f3f]' : 'bg-gray-200'}`} />
+          <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>or</span>
+          <div className={`flex-1 h-px ${isDark ? 'bg-[#3f3f3f]' : 'bg-gray-200'}`} />
         </div>
 
         {/* Google Sign In Button */}
@@ -228,7 +228,7 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
           disabled={isGoogleLoading}
           className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-3 transition-all border ${
             isDark
-              ? 'bg-zinc-900/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-zinc-600'
+              ? 'bg-[#171717]/50 border-[#3f3f3f] text-white hover:bg-[#2f2f2f] hover:border-[#4a4a4a]'
               : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
           } disabled:opacity-50`}
         >
@@ -245,11 +245,11 @@ export function LoginPage({ onLogin, onSwitchToSignup, theme }) {
         <div className="mt-4" />
 
         {/* Sign Up Link */}
-        <p className={`text-center ${isDark ? 'text-zinc-400' : 'text-gray-600'}`}>
+        <p className={`text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           Don't have an account?{' '}
           <button
             onClick={onSwitchToSignup}
-            className={`font-medium ${isDark ? 'text-zinc-200 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}
+            className={`font-medium ${isDark ? 'text-gray-200 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}
           >
             Sign up
           </button>
@@ -364,17 +364,17 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
   return (
     <div className={`min-h-screen flex items-center justify-center p-4 ${
       isDark 
-        ? 'bg-gradient-to-br from-zinc-900 via-zinc-800 to-zinc-900' 
+        ? 'bg-gradient-to-br from-[#171717] via-[#212121] to-[#171717]' 
         : 'bg-gradient-to-br from-gray-100 via-white to-gray-100'
     }`}>
       <div className={`w-full max-w-md ${
-        isDark ? 'bg-zinc-800/50 border-zinc-700' : 'bg-white border-gray-200'
+        isDark ? 'bg-[#2f2f2f]/50 border-[#3f3f3f]' : 'bg-white border-gray-200'
       } border rounded-2xl p-8 shadow-xl`}>
         {/* Logo */}
         <div className="text-center mb-8">
           <div className={`w-16 h-16 mx-auto rounded-2xl ${
             isDark 
-              ? 'bg-gradient-to-br from-zinc-600 to-zinc-800 border-zinc-500/30' 
+              ? 'bg-gradient-to-br from-[#3f3f3f] to-[#2f2f2f] border-[#4a4a4a]' 
               : 'bg-gradient-to-br from-blue-500 to-blue-600 border-blue-400/30'
           } border flex items-center justify-center mb-4`}>
             <Sparkles className="w-8 h-8 text-white" />
@@ -382,7 +382,7 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
           <h1 className={`text-2xl font-bold ${isDark ? 'text-white' : 'text-gray-900'}`}>
             Create Account
           </h1>
-          <p className={`mt-2 ${isDark ? 'text-zinc-400' : 'text-gray-600'}`}>
+          <p className={`mt-2 ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
             Get started with AI Assistant
           </p>
         </div>
@@ -397,11 +397,11 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
         {/* Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Name
             </label>
             <div className="relative">
-              <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`} />
+              <User className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type="text"
                 value={name}
@@ -409,19 +409,19 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
                 placeholder="John Doe"
                 className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
                   isDark 
-                    ? 'bg-zinc-900/50 border-zinc-700 text-white placeholder-zinc-500 focus:border-zinc-500' 
+                    ? 'bg-[#171717]/50 border-[#3f3f3f] text-white placeholder-gray-500 focus:border-[#5a5a5a]' 
                     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-zinc-500' : 'focus:ring-blue-500'}`}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-[#5a5a5a]' : 'focus:ring-blue-500'}`}
               />
             </div>
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Email
             </label>
             <div className="relative">
-              <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`} />
+              <Mail className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type="email"
                 value={email}
@@ -429,19 +429,19 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
                 placeholder="you@example.com"
                 className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
                   isDark 
-                    ? 'bg-zinc-900/50 border-zinc-700 text-white placeholder-zinc-500 focus:border-zinc-500' 
+                    ? 'bg-[#171717]/50 border-[#3f3f3f] text-white placeholder-gray-500 focus:border-[#5a5a5a]' 
                     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-zinc-500' : 'focus:ring-blue-500'}`}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-[#5a5a5a]' : 'focus:ring-blue-500'}`}
               />
             </div>
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Password
             </label>
             <div className="relative">
-              <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`} />
+              <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={password}
@@ -449,14 +449,14 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
                 placeholder="••••••••"
                 className={`w-full pl-10 pr-12 py-3 rounded-xl border ${
                   isDark 
-                    ? 'bg-zinc-900/50 border-zinc-700 text-white placeholder-zinc-500 focus:border-zinc-500' 
+                    ? 'bg-[#171717]/50 border-[#3f3f3f] text-white placeholder-gray-500 focus:border-[#5a5a5a]' 
                     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-zinc-500' : 'focus:ring-blue-500'}`}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-[#5a5a5a]' : 'focus:ring-blue-500'}`}
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-zinc-500 hover:text-zinc-300' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`absolute right-3 top-1/2 -translate-y-1/2 ${isDark ? 'text-gray-500 hover:text-gray-300' : 'text-gray-400 hover:text-gray-600'}`}
               >
                 {showPassword ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
               </button>
@@ -464,11 +464,11 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
           </div>
 
           <div>
-            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-zinc-300' : 'text-gray-700'}`}>
+            <label className={`block text-sm font-medium mb-2 ${isDark ? 'text-gray-300' : 'text-gray-700'}`}>
               Confirm Password
             </label>
             <div className="relative">
-              <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-zinc-500' : 'text-gray-400'}`} />
+              <Lock className={`absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 ${isDark ? 'text-gray-500' : 'text-gray-400'}`} />
               <input
                 type={showPassword ? 'text' : 'password'}
                 value={confirmPassword}
@@ -476,9 +476,9 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
                 placeholder="••••••••"
                 className={`w-full pl-10 pr-4 py-3 rounded-xl border ${
                   isDark 
-                    ? 'bg-zinc-900/50 border-zinc-700 text-white placeholder-zinc-500 focus:border-zinc-500' 
+                    ? 'bg-[#171717]/50 border-[#3f3f3f] text-white placeholder-gray-500 focus:border-[#5a5a5a]' 
                     : 'bg-gray-50 border-gray-300 text-gray-900 placeholder-gray-400 focus:border-blue-500'
-                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-zinc-500' : 'focus:ring-blue-500'}`}
+                } focus:outline-none focus:ring-2 focus:ring-opacity-50 ${isDark ? 'focus:ring-[#5a5a5a]' : 'focus:ring-blue-500'}`}
               />
             </div>
           </div>
@@ -488,7 +488,7 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
             disabled={isLoading}
             className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-2 transition-all ${
               isDark
-                ? 'bg-gradient-to-r from-zinc-600 to-zinc-700 hover:from-zinc-500 hover:to-zinc-600 text-white'
+                ? 'bg-gradient-to-r from-[#3f3f3f] to-[#4a4a4a] hover:from-[#4a4a4a] hover:to-[#5a5a5a] text-white'
                 : 'bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white'
             } disabled:opacity-50`}
           >
@@ -505,9 +505,9 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
 
         {/* Divider */}
         <div className="my-6 flex items-center gap-4">
-          <div className={`flex-1 h-px ${isDark ? 'bg-zinc-700' : 'bg-gray-200'}`} />
-          <span className={`text-sm ${isDark ? 'text-zinc-500' : 'text-gray-400'}`}>or</span>
-          <div className={`flex-1 h-px ${isDark ? 'bg-zinc-700' : 'bg-gray-200'}`} />
+          <div className={`flex-1 h-px ${isDark ? 'bg-[#3f3f3f]' : 'bg-gray-200'}`} />
+          <span className={`text-sm ${isDark ? 'text-gray-500' : 'text-gray-400'}`}>or</span>
+          <div className={`flex-1 h-px ${isDark ? 'bg-[#3f3f3f]' : 'bg-gray-200'}`} />
         </div>
 
         {/* Google Sign Up Button */}
@@ -517,7 +517,7 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
           disabled={isGoogleLoading}
           className={`w-full py-3 rounded-xl font-medium flex items-center justify-center gap-3 transition-all border ${
             isDark
-              ? 'bg-zinc-900/50 border-zinc-700 text-white hover:bg-zinc-800 hover:border-zinc-600'
+              ? 'bg-[#171717]/50 border-[#3f3f3f] text-white hover:bg-[#2f2f2f] hover:border-[#4a4a4a]'
               : 'bg-white border-gray-300 text-gray-700 hover:bg-gray-50 hover:border-gray-400'
           } disabled:opacity-50`}
         >
@@ -534,11 +534,11 @@ export function SignupPage({ onSignup, onSwitchToLogin, theme }) {
         <div className="mt-4" />
 
         {/* Login Link */}
-        <p className={`text-center ${isDark ? 'text-zinc-400' : 'text-gray-600'}`}>
+        <p className={`text-center ${isDark ? 'text-gray-400' : 'text-gray-600'}`}>
           Already have an account?{' '}
           <button
             onClick={onSwitchToLogin}
-            className={`font-medium ${isDark ? 'text-zinc-200 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}
+            className={`font-medium ${isDark ? 'text-gray-200 hover:text-white' : 'text-blue-600 hover:text-blue-700'}`}
           >
             Sign in
           </button>

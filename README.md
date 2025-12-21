@@ -14,9 +14,19 @@ A production-ready AI application with two core capabilities:
 - 🔍 **Hybrid Search**: Vector + keyword search for maximum accuracy
 - 📚 **Source Citations**: Every RAG answer includes references with relevance scores
 
+### 🦜 LangChain & LangGraph Integration
+- **LangChain Document Loaders**: PDF, DOCX, TXT, CSV with automatic text splitting
+- **LangChain Embeddings**: HuggingFace Transformers or OpenAI embeddings
+- **LangChain Vector Store**: FAISS vector store with similarity search
+- **LangChain LLM Integration**: Unified interface for Ollama, OpenAI, DeepSeek
+- **LangGraph RAG Agent**: Stateful multi-step workflow with query routing
+- **LangGraph Conversation Agent**: Context-aware agent with memory
+
 ### Technical Features
-- 🚀 Modern React frontend with Tailwind CSS
-- 💾 In-memory vector store with FAISS-like similarity search
+- � **Python Backend (Recommended)**: FastAPI + LangChain + LangGraph
+- 🟢 **Node.js Backend (Alternative)**: Express + LangChain.js
+- �🚀 Modern React frontend with Tailwind CSS
+- 💾 FAISS vector store for fast similarity search
 - 🔗 Intelligent text chunking with overlap
 - 💬 Conversation memory for context-aware responses
 - 🎨 Beautiful, responsive UI with dark mode
@@ -25,57 +35,106 @@ A production-ready AI application with two core capabilities:
 
 ```
 RAG chatbot/
-├── backend/
-│   ├── server.js              # Express API server
-│   ├── package.json           # Backend dependencies
-│   ├── .env.example           # Environment variables template
+├── backend-python/               # 🐍 Python Backend (Recommended)
+│   ├── main.py                   # FastAPI server
+│   ├── config.py                 # Configuration settings
+│   ├── requirements.txt          # Python dependencies
+│   ├── .env.example              # Environment template
+│   ├── services/
+│   │   ├── document_loader.py    # LangChain document loaders
+│   │   ├── vector_store.py       # FAISS vector store
+│   │   └── llm_service.py        # LLM integration
+│   └── agents/
+│       ├── rag_agent.py          # LangGraph RAG agent
+│       └── conversation_agent.py # LangGraph conversation agent
+├── backend/                      # 🟢 Node.js Backend (Alternative)
+│   ├── server.js                 # Express API server
+│   ├── serverLangChain.js        # LangChain.js server
 │   └── services/
-│       ├── documentProcessor.js  # Multi-format document parsing
-│       ├── vectorStore.js        # Embeddings & similarity search
-│       ├── llmService.js         # LLM integration (OpenAI, etc.)
-│       └── chatRouter.js         # Query routing logic
+│       └── ...
 ├── frontend/
 │   ├── src/
-│   │   ├── App.jsx            # Main React component
-│   │   ├── main.jsx           # React entry point
-│   │   └── index.css          # Tailwind styles
-│   ├── index.html             # HTML template
-│   ├── package.json           # Frontend dependencies
-│   ├── vite.config.js         # Vite configuration
-│   ├── tailwind.config.js     # Tailwind configuration
-│   └── postcss.config.js      # PostCSS configuration
+│   │   ├── App.jsx               # Main React component
+│   │   └── ...
+│   └── ...
 └── README.md
 ```
 
 ## 🚀 Quick Start
 
-### 1. Install Dependencies
+### Option 1: Python Backend (Recommended) 🐍
 
-**Backend:**
+Python has the best LangChain & LangGraph support with more features.
+
+**1. Create virtual environment:**
 ```bash
-cd backend
-npm install
+cd backend-python
+python -m venv venv
+source venv/bin/activate  # On Windows: venv\Scripts\activate
 ```
 
-**Frontend:**
+**2. Install dependencies:**
 ```bash
-cd frontend
-npm install
+pip install -r requirements.txt
 ```
 
-### 2. Configure Environment
-
+**3. Configure environment:**
 ```bash
-cd backend
 cp .env.example .env
-# Edit .env and add your OpenAI API key (optional)
+# Edit .env with your settings
 ```
+
+**4. Run the server:**
+```bash
+python main.py
+# Or with uvicorn:
+uvicorn main:app --reload --port 8000
+```
+
+**5. Start the frontend:**
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+**6. Open http://localhost:5173**
+
+---
+
+### Option 2: Node.js Backend 🟢
+
+**1. Install dependencies:**
+```bash
+cd backend
+npm install
+```
+
+**2. Configure environment:**
+```bash
+cp .env.example .env
+```
+
+**3. Run the server:**
+```bash
+npm run dev:langchain
+```
+
+**4. Start the frontend:**
+```bash
+cd ../frontend
+npm install
+npm run dev
+```
+
+---
 
 ### 3. Start the Application
 
 **Terminal 1 - Backend:**
 ```bash
-cd backend
+cd backend-python
+python main.py
 npm run dev
 ```
 
