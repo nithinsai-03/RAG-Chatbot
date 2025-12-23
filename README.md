@@ -7,14 +7,14 @@ A production-ready AI application with two core capabilities:
 ## ✨ Features
 
 ### Core Capabilities
-- 🔄 **Dual Mode Operation**: Switch between General AI and RAG modes
-- 🧠 **Auto Mode**: Intelligently routes queries based on context
-- 📄 **Multi-format Document Support**: PDF, DOCX, PPTX, XLSX, TXT, MD, CSV
-- 🌐 **URL Ingestion**: Extract content from web pages
-- 🔍 **Hybrid Search**: Vector + keyword search for maximum accuracy
-- 📚 **Source Citations**: Every RAG answer includes references with relevance scores
+-  **Dual Mode Operation**: Switch between General AI and RAG modes
+-  **Auto Mode**: Intelligently routes queries based on context
+-  **Multi-format Document Support**: PDF, DOCX, PPTX, XLSX, TXT, MD, CSV
+-  **URL Ingestion**: Extract content from web pages
+-  **Hybrid Search**: Vector + keyword search for maximum accuracy
+-  **Source Citations**: Every RAG answer includes references with relevance scores
 
-### 🦜 LangChain & LangGraph Integration
+### LangChain & LangGraph Integration
 - **LangChain Document Loaders**: PDF, DOCX, TXT, CSV with automatic text splitting
 - **LangChain Embeddings**: HuggingFace Transformers or OpenAI embeddings
 - **LangChain Vector Store**: FAISS vector store with similarity search
@@ -23,19 +23,19 @@ A production-ready AI application with two core capabilities:
 - **LangGraph Conversation Agent**: Context-aware agent with memory
 
 ### Technical Features
-- � **Python Backend (Recommended)**: FastAPI + LangChain + LangGraph
-- 🟢 **Node.js Backend (Alternative)**: Express + LangChain.js
-- �🚀 Modern React frontend with Tailwind CSS
-- 💾 FAISS vector store for fast similarity search
-- 🔗 Intelligent text chunking with overlap
-- 💬 Conversation memory for context-aware responses
-- 🎨 Beautiful, responsive UI with dark mode
+- **Python Backend (Recommended)**: FastAPI + LangChain + LangGraph
+- **Node.js Backend (Alternative)**: Express + LangChain.js
+- Modern React frontend with Tailwind CSS
+- FAISS vector store for fast similarity search
+- Intelligent text chunking with overlap
+- Conversation memory for context-aware responses
+- Beautiful, responsive UI with dark mode
 
-## 🏗️ Project Structure
+## Project Structure
 
 ```
 RAG chatbot/
-├── backend-python/               # 🐍 Python Backend (Recommended)
+├── backend-python/               # Python Backend (Recommended)
 │   ├── main.py                   # FastAPI server
 │   ├── config.py                 # Configuration settings
 │   ├── requirements.txt          # Python dependencies
@@ -47,7 +47,7 @@ RAG chatbot/
 │   └── agents/
 │       ├── rag_agent.py          # LangGraph RAG agent
 │       └── conversation_agent.py # LangGraph conversation agent
-├── backend/                      # 🟢 Node.js Backend (Alternative)
+├── backend/                      # Node.js Backend (Alternative)
 │   ├── server.js                 # Express API server
 │   ├── serverLangChain.js        # LangChain.js server
 │   └── services/
@@ -62,7 +62,7 @@ RAG chatbot/
 
 ## 🚀 Quick Start
 
-### Option 1: Python Backend (Recommended) 🐍
+### Option 1: Python Backend (Recommended) 
 
 Python has the best LangChain & LangGraph support with more features.
 
@@ -102,7 +102,7 @@ npm run dev
 
 ---
 
-### Option 2: Node.js Backend 🟢
+### Option 2: Node.js Backend 
 
 **1. Install dependencies:**
 ```bash
@@ -207,7 +207,7 @@ The app works without an API key! It will:
 | `/api/search` | POST | Search documents |
 | `/api/stats` | GET | Get system stats |
 
-## 🎨 Tech Stack
+## Tech Stack
 
 ### Backend
 - **Express.js** - API server
@@ -227,10 +227,10 @@ The app works without an API key! It will:
 - **React Dropzone** - File uploads
 - **Axios** - HTTP client
 
-## 📝 License
+##  License
 
 MIT License
 
-## 🤝 Contributing
+## 🤝Contributing
 
 Contributions are welcome! Please feel free to submit a Pull Request.
