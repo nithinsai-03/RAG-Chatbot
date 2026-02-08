@@ -16,6 +16,18 @@ class Settings(BaseSettings):
     HOST: str = "0.0.0.0"
     PORT: int = 8000
     
+    # Database
+    DB_HOST: str = "localhost"
+    DB_PORT: int = 5432
+    DB_USER: str = "postgres"
+    DB_PASSWORD: str = "password"
+    DB_NAME: str = "rag_chatbot"
+    
+    # Authentication
+    SECRET_KEY: str = "your-secret-key-change-in-production-12345"
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+    REFRESH_TOKEN_EXPIRE_DAYS: int = 7
+    
     # LLM Provider: "ollama", "openai", "deepseek"
     LLM_PROVIDER: str = "ollama"
     
